@@ -2,7 +2,8 @@ package com.zho.content;
 
 public enum BlogNiche {
     HOME_FITNESS("Home Fitness", "A blog about home workouts and fitness tips"),
-    URBAN_BEEKEEPING("Urban Beekeeping", "A blog about beekeeping in city environments");
+    HOMOLOGY_GROUPS("Homology Groups", "A blog about homology groups and their applications"),
+    LONG_HAIRED_CATS("Long Haired Cats", "A blog about long haired cats and their care");
 
     private final String displayName;
     private final String description;

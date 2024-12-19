@@ -25,9 +25,9 @@ public class AIContentGenerator {
         int count = 3; // Hardcoded count
         
         for (int i = 0; i < count; i++) {
-            String title = String.format("%s Tips #%d", niche.getDisplayName(), i + 1);
-            String content = callOpenAI(String.format("Write a blog post about %s - Article %d", 
-                niche.getDisplayName(), i + 1));
+            String title = callOpenAI(String.format("Generate a highly unique title for a blog post about %s. make it a unique subtopic of %s", 
+                niche.getDisplayName(), niche.getDisplayName()));
+            String content = callOpenAI(String.format("Write a blog post about %s", title));
             posts.add(new BlogPost(postIds[i], title, content));
         }
         return posts;

@@ -15,7 +15,7 @@ public class App {
         // Initialize components
         WordPressUpdater wpUpdater = new WordPressUpdater();
 
-        BlogNiche niche = BlogNiche.HOME_FITNESS;
+        BlogNiche niche = BlogNiche.LONG_HAIRED_CATS;
 
        AboutPage aboutPage = generator.generateAboutPage(niche);
         wpUpdater.updateAboutPage(aboutPage);
