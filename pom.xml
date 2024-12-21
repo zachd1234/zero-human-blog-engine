@@ -118,6 +118,23 @@
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>3.0.0</version>
         </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>3.3.1</version>
+            <configuration>
+                <configLocation>google_checks.xml</configLocation>
+                <failOnViolation>true</failOnViolation>
+            </configuration>
+        </plugin>
+        <plugin>
+            <groupId>org.owasp</groupId>
+            <artifactId>dependency-check-maven</artifactId>
+            <version>8.4.3</version>
+            <configuration>
+                <failBuildOnCVSS>7</failBuildOnCVSS>
+            </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
   </build>

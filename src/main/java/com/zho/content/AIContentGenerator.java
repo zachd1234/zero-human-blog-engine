@@ -5,6 +5,8 @@ import java.util.*;
 import okhttp3.*;
 import org.json.*;
 import java.io.IOException;
+import javax.net.ssl.*;
+import java.security.cert.X509Certificate;
 
 public class AIContentGenerator {
     

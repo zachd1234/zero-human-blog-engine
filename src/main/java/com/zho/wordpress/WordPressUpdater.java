@@ -17,6 +17,12 @@ import org.json.JSONObject;
 
 
 public class WordPressUpdater {
+    private CloseableHttpClient httpClient;
+
+    public WordPressUpdater() {
+        this.httpClient = createHttpClient();
+    }
+
     public void updatePost(BlogPost post) {
         String url = WordPressConfig.BASE_URL + "posts/" + post.getId();
 
@@ -71,5 +77,9 @@ public class WordPressUpdater {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private CloseableHttpClient createHttpClient() {
+        return HttpClients.createDefault();
     }
 }
