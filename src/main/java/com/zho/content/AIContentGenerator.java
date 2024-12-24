@@ -68,4 +68,18 @@ public class AIContentGenerator {
         }
     }
 
-} 
+    public String generateBlogName(String topic) {
+        String prompt = String.format(
+            "Generate a short, catchy blog name for a blog about %s. " +
+            "Requirements:\n" +
+            "- Maximum 3 words\n" +
+            "- No special characters\n" +
+            "- Should be memorable and brandable\n" +
+            "Return ONLY the name, nothing else.", 
+            topic
+        );
+        
+        return callOpenAI(prompt).trim();
+    }
+
+}
