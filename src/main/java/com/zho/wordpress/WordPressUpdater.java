@@ -80,6 +80,30 @@ public class WordPressUpdater {
         }
     }
 
+    public void updateSiteIcon(BufferedImage icon) throws IOException, ParseException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(icon, "png", baos);
+        byte[] imageBytes = baos.toByteArray();
+
+        String url = WordPressConfig.BASE_URL + "media";
+        
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody("file", imageBytes, ContentType.IMAGE_PNG, "site-icon.png");
+        HttpEntity multipart = builder.build();
+
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        uploadRequest.setEntity(multipart);
+        setAuthHeader(uploadRequest);
+
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject json = new JSONObject(responseBody);
+            int mediaId = json.getInt("id");
+            
+            updateSiteSetting("site_icon", String.valueOf(mediaId));
+        }
+    }
+
     private void updateSiteSetting(String setting, String value) throws IOException {
         String url = WordPressConfig.BASE_URL + "settings";
         

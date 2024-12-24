@@ -13,6 +13,10 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import org.json.JSONObject;
 import org.json.JSONArray;
+import java.awt.Graphics2D;
+import java.awt.Color;
+import java.awt.AlphaComposite;
+import java.awt.image.BufferedImage;
 
 public class IconFetcher {
     private final OAuthConsumer consumer;
@@ -25,6 +29,22 @@ public class IconFetcher {
         String apiSecret = props.getProperty("api.nounproject.secret");
         
         this.consumer = new DefaultOAuthConsumer(apiKey, apiSecret);
+    }
+
+    private BufferedImage tintIcon(BufferedImage original) {
+        BufferedImage tinted = new BufferedImage(original.getWidth(), original.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = tinted.createGraphics();
+        
+        // Draw original image
+        g2d.drawImage(original, 0, 0, null);
+        
+        // Apply teal color overlay (#049F82)
+        g2d.setColor(new Color(0x04, 0x9F, 0x82));
+        g2d.setComposite(AlphaComposite.SrcAtop);
+        g2d.fillRect(0, 0, original.getWidth(), original.getHeight());
+        
+        g2d.dispose();
+        return tinted;
     }
 
     public BufferedImage fetchRelatedIcon(String keyword) throws IOException {
@@ -66,7 +86,8 @@ public class IconFetcher {
             String imageUrl = icons.getJSONObject(0).getString("thumbnail_url");
             
             // Now fetch the actual image
-            return ImageIO.read(new URL(imageUrl));
+            BufferedImage originalIcon = ImageIO.read(new URL(imageUrl));
+            return tintIcon(originalIcon);
             
         } catch (Exception e) {
             throw new IOException("Failed to fetch icon: " + e.getMessage(), e);

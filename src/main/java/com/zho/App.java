@@ -17,10 +17,19 @@ public class App {
             // Select your niche
             BlogNiche niche = BlogNiche.LONG_HAIRED_CATS;
             
-            // 1. Generate and update logo
-            System.out.println("Generating and updating logo...");
+            // 1. Generate and update logo and favicon
+            System.out.println("Generating and updating logo and favicon...");
+            
+            // Get icon first
+            IconFetcher iconFetcher = new IconFetcher();
+            BufferedImage icon = iconFetcher.fetchRelatedIcon(niche.getDisplayName());
+            
+            // Generate logo (which combines icon with text)
             BufferedImage logo = logoGenerator.generateLogo(niche.getDisplayName());
+            
+            // Update both
             wpUpdater.updateSiteLogo(logo);
+            wpUpdater.updateSiteIcon(icon);  // Use the icon alone for favicon
             
             // 2. Generate and update about page
             System.out.println("Generating and updating about page...");
