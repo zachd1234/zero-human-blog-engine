@@ -11,11 +11,11 @@ public class App {
 
         AIContentGenerator generator = new AIContentGenerator();
 
-
+  
         // Initialize components
         WordPressUpdater wpUpdater = new WordPressUpdater();
 
-        BlogNiche niche = BlogNiche.DISCOUNTED_CASHFLOW_VALUATIONS;
+        BlogNiche niche = BlogNiche.LONG_HAIRED_CATS;
 
        AboutPage aboutPage = generator.generateAboutPage(niche);
         wpUpdater.updateAboutPage(aboutPage);

@@ -1,1 +1,8 @@
-/Users/zachderhake/autoblog4/src/main/java/com/zho/App.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/content/AIContentGenerator.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/wordpress/WordPressConfig.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/content/KeywordResearch.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/content/BlogNiche.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/model/AboutPage.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/wordpress/WordPressUpdater.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/model/BlogPost.java
+/Users/zachderhake/Documents/Programming/autoblog4/src/main/java/com/zho/App.java
