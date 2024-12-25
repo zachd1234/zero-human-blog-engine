@@ -82,4 +82,79 @@ public class AIContentGenerator {
         return callOpenAI(prompt).trim();
     }
 
+    public String generateMissionStatement(BlogNiche niche) {
+        String prompt = String.format(
+            "Write a concise, engaging mission statement (1-2 sentences) for a blog about %s. " +
+            "The statement should inspire readers and clearly communicate the blog's purpose. " +
+            "The blog is called '%s'.",
+            niche.getDescription(),
+            niche.getDisplayName()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
+    public String generateHeading(BlogNiche niche) {
+        String prompt = String.format(
+            "Create a single powerful sentence starting with an '-ing' verb that describes how %s blog helps readers. " +
+            "Format: [Verb-ing] [target audience] [achieve specific result]. " +
+            "Example: 'Building strength so you can maintain vitality' or 'Teaching parents to raise confident kids'. " +
+            "Make it specific to: %s",
+            niche.getDisplayName(),
+            niche.getDescription()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
+    public String generateSubheading(BlogNiche niche) {
+        String prompt = String.format(
+            "Create a single sentence that expands on the blog's value proposition using this format: " +
+            "'We help [target audience] [achieve main result] through [topic 1], [topic 2], and [topic 3].' " +
+            "Make it specific to a blog about: %s",
+            niche.getDescription()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
+    public String generateValueProp(BlogNiche niche) {
+        String prompt = String.format(
+            "Create a short, powerful value proposition (3-6 words) for a blog about %s. " +
+            "Format: The ultimate result readers will get, stated concisely. " +
+            "Examples: 'Never worry about money again' or 'Truly understand your cat' or 'Be fit for life'. " +
+            "Make it specific to: %s",
+            niche.getDisplayName(),
+            niche.getDescription()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
+    public String generateStory(BlogNiche niche) {
+        String prompt = String.format(
+            "Write a personal story (2-3 sentences) about why I started a blog about %s. " +
+            "Format: I was living my life when I noticed a problem: couldn't find good information about %s. " +
+            "Since I'm passionate about this topic, I decided to create a blog to help others. " +
+            "Make it authentic and relatable.",
+            niche.getDisplayName(),
+            niche.getDescription()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
+    public String generateExpandedMission(BlogNiche niche) {
+        String prompt = String.format(
+            "Write an expanded mission statement (3-4 sentences) for a blog about %s. " +
+            "Start with what readers will get from the blog. " +
+            "Format: By reading this blog, you will [benefit 1], [benefit 2], and [benefit 3]. " +
+            "Make it personal ('I want to help you...') and inspiring. " +
+            "Focus on the transformation readers will experience.",
+            niche.getDescription()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
 }

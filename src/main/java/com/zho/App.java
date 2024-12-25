@@ -17,6 +17,13 @@ public class App {
             // Select your niche
             BlogNiche niche = BlogNiche.LONG_HAIRED_CATS;
             
+            // Update mission statement and headings based on niche
+            System.out.println("Updating mission statement and headings...");
+            wpUpdater.updateMissionParagraph(niche);
+            wpUpdater.updateHeadingAndSubheading(niche);
+            wpUpdater.updateAllContent(niche); //for About Us Page. 
+            //TODO: Consolidate these methods 
+            
             // 1. Generate and update logo and favicon
             System.out.println("Generating and updating logo and favicon...");
             
@@ -42,6 +49,7 @@ public class App {
             for (BlogPost post : posts) {
                 wpUpdater.updatePost(post);
             }
+            
             
             System.out.println("Blog setup completed successfully!");
             
