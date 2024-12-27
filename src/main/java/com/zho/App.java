@@ -5,6 +5,8 @@ import com.zho.wordpress.*;
 import com.zho.model.*;
 import java.util.List;
 import java.awt.image.BufferedImage;
+import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
+import org.apache.hc.core5.http.ContentType;
 
 public class App {
     public static void main(String[] args) {
@@ -50,6 +52,7 @@ public class App {
                 wpUpdater.updatePost(post);
             }
             
+            wpUpdater.updateAllImages(niche);
             
             System.out.println("Blog setup completed successfully!");
             

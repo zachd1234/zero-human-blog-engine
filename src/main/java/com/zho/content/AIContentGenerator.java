@@ -157,4 +157,17 @@ public class AIContentGenerator {
         return callOpenAI(prompt);
     }
 
+    public String generateImageSearchTerm(BlogNiche niche) {
+        String prompt = String.format(
+            "Generate a single specific search term (2-4 words) for finding a relevant image for a blog about %s. " +
+            "The image should be professional and engaging. " +
+            "Example: 'professional coffee brewing' or 'healthy meal prep'. " +
+            "Make it specific to: %s",
+            niche.getDisplayName(),
+            niche.getDescription()
+        );
+        
+        return callOpenAI(prompt);
+    }
+
 }

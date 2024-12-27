@@ -26,6 +26,9 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.core5.http.HttpRequest;
 import com.zho.content.AIContentGenerator;
 import com.zho.content.BlogNiche;
+import com.zho.images.UnsplashClient;
+import com.zho.images.UnsplashImage;
+import java.util.List;
 
 
 public class WordPressUpdater {
@@ -398,15 +401,252 @@ public class WordPressUpdater {
         updateStoryAndMission(story, mission);
     }
 
+    public void updateInfoBoxImage(String searchQuery) throws IOException, ParseException {
+        // Get image from Unsplash
+        UnsplashClient unsplashClient = new UnsplashClient();
+        List<UnsplashImage> images = unsplashClient.searchImages(searchQuery);
+        if (images.isEmpty()) {
+            throw new IOException("No images found for query: " + searchQuery);
+        }
+        UnsplashImage selectedImage = images.get(0);  // Get first image
+        
+        // Update WordPress content
+        String url = WordPressConfig.BASE_URL + "pages/318?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject page = new JSONObject(responseBody);
+            
+            JSONObject content = page.getJSONObject("content");
+            String currentContent = content.getString("raw");
+            
+            // Find and replace the infobox image block
+            String infoboxPattern = "<!-- wp:kadence/infobox \\{[^}]*\"uniqueID\":\"318_1fa743-7a\"[^}]*\\}[\\s\\S]*?<!-- /wp:kadence/infobox -->";
+            String newInfobox = "<!-- wp:kadence/infobox {" +
+                    "\"uniqueID\":\"318_1fa743-7a\"," +
+                    "\"containerBackground\":\"#f2f2f2\"," +
+                    "\"containerBackgroundOpacity\":1," +
+                    "\"containerHoverBackground\":\"#f2f2f2\"," +
+                    "\"containerHoverBackgroundOpacity\":1," +
+                    "\"containerPadding\":[0,0,0,0]," +
+                    "\"mediaType\":\"image\"," +
+                    "\"mediaImage\":[{" +
+                    "\"url\":\"" + selectedImage.getUrl() + "\"," +
+                    "\"alt\":\"" + selectedImage.getDescription() + "\"," +
+                    "\"maxWidth\":493," +
+                    "\"hoverAnimation\":\"none\"" +
+                    "}]," +
+                    "\"mediaStyle\":[{" +
+                    "\"background\":\"transparent\"," +
+                    "\"hoverBackground\":\"transparent\"," +
+                    "\"border\":\"#444444\"," +
+                    "\"hoverBorder\":\"#444444\"," +
+                    "\"borderRadius\":0," +
+                    "\"borderWidth\":[0,0,0,0]," +
+                    "\"padding\":[0,0,0,0]," +
+                    "\"margin\":[0,0,0,0]" +
+                    "}]} -->\n" +
+                    "<div class=\"kt-info-box318_1fa743-7a wp-block-kadence-infobox\">" +
+                    "<div class=\"kt-blocks-info-box-media-container\"><div class=\"kt-blocks-info-box-media\">" +
+                    "<img src=\"" + selectedImage.getUrl() + "\" alt=\"" + selectedImage.getDescription() + "\"/>" +
+                    "</div></div></div>\n" +
+                    "<!-- /wp:kadence/infobox -->";
+            
+            String updatedContent = currentContent.replaceAll(infoboxPattern, newInfobox);
+            
+            // Create update payload
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+            
+            // Send update
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                int statusCode = updateResponse.getCode();
+                System.out.println("Update status: " + statusCode);
+            }
+        }
+    }
+
+    public void updateAllImages(BlogNiche niche) throws IOException, ParseException {
+        AIContentGenerator generator = new AIContentGenerator();
+        String searchTerm = generator.generateImageSearchTerm(niche);
+        
+        UnsplashClient unsplashClient = new UnsplashClient();
+        List<UnsplashImage> images = unsplashClient.searchImages(searchTerm);
+        if (images.size() < 6) {  // Now need 6 images (3 for pages + 3 for posts)
+            throw new IOException("Not enough images found for query: " + searchTerm);
+        }
+        
+        // Update page images
+        updateInfoBoxImage(searchTerm);
+        updateSimpleImage(609, images.get(1));
+        updateBackgroundImage(609, "609_fc7adf-33", images.get(2));
+        
+        // Update post cover images
+        int[] postIds = {23, 21, 1};
+        for (int i = 0; i < postIds.length; i++) {
+            updatePostCoverImage(postIds[i], images.get(i + 3));  // Use images 3, 4, and 5
+        }
+        
+        System.out.println("All images updated successfully!");
+    }
+    
+    private void updateSimpleImage(int pageId, UnsplashImage image) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "pages/" + pageId + "?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject page = new JSONObject(responseBody);
+            
+            JSONObject content = page.getJSONObject("content");
+            String currentContent = content.getString("raw");
+            
+            // Find and replace the image block
+            String imagePattern = "<!-- wp:image \\{[^}]*\\}[\\s\\S]*?<!-- /wp:image -->";
+            String newImage = "<!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n" +
+                    "<figure class=\"wp-block-image size-large\">" +
+                    "<img src=\"" + image.getUrl() + "\" " +
+                    "alt=\"" + image.getDescription() + "\"/>" +
+                    "</figure>\n" +
+                    "<!-- /wp:image -->";
+            
+            String updatedContent = currentContent.replaceAll(imagePattern, newImage);
+            
+            // Create update payload
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+            
+            // Send update
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                int statusCode = updateResponse.getCode();
+                System.out.println("Update status for page " + pageId + ": " + statusCode);
+            }
+        }
+    }
+
+    private void updateBackgroundImage(int pageId, String blockId, UnsplashImage image) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "pages/" + pageId + "?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject page = new JSONObject(responseBody);
+            
+            JSONObject content = page.getJSONObject("content");
+            String currentContent = content.getString("raw");
+            
+            // Find and replace the background image
+            String rowPattern = "<!-- wp:kadence/rowlayout \\{[^}]*\"uniqueID\":\"" + blockId + "\"[^}]*\\}[\\s\\S]*?-->";
+            String newRow = "<!-- wp:kadence/rowlayout {" +
+                    "\"uniqueID\":\"" + blockId + "\"," +
+                    "\"columns\":1,\"colLayout\":\"equal\"," +
+                    "\"maxWidth\":900," +
+                    "\"bgImg\":\"" + image.getUrl() + "\"," +
+                    "\"tabletPadding\":[60,30,60,30]," +
+                    "\"padding\":[100,20,101,20]," +
+                    "\"mobilePadding\":[40,20,40,20]," +
+                    "\"kbVersion\":2} -->";
+            
+            String updatedContent = currentContent.replaceFirst(rowPattern, newRow);
+            
+            // Create update payload
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+            
+            // Send update
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                int statusCode = updateResponse.getCode();
+                System.out.println("Update status for page " + pageId + " background: " + statusCode);
+            }
+        }
+    }
+
+    private void updatePostCoverImage(int postId, UnsplashImage image) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "posts/" + postId + "?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject post = new JSONObject(responseBody);
+            
+            // Create update payload with featured media
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("featured_media", uploadImage(image));
+            
+            // Send update
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                int statusCode = updateResponse.getCode();
+                System.out.println("Update status for post " + postId + " cover: " + statusCode);
+            }
+        }
+    }
+    
+    private int uploadImage(UnsplashImage image) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "media";
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        setAuthHeader(uploadRequest);
+        
+        // Download image data from Unsplash URL first
+        byte[] imageData = downloadImage(image.getUrl());
+        
+        // Create multipart form data
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody(
+            "file",
+            imageData,
+            ContentType.IMAGE_JPEG,
+            "image.jpg"
+        );
+        
+        HttpEntity multipart = builder.build();
+        uploadRequest.setEntity(multipart);
+        
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject mediaResponse = new JSONObject(responseBody);
+            return mediaResponse.getInt("id");
+        }
+    }
+    
+    private byte[] downloadImage(String imageUrl) throws IOException {
+        HttpGet request = new HttpGet(URI.create(imageUrl));
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            return EntityUtils.toByteArray(response.getEntity());
+        }
+    }
+
     public static void main(String[] args) {
         try {
             WordPressUpdater updater = new WordPressUpdater();
             
             // Test updating the mission paragraph
-            String newMission = "Our mission is to provide exceptional service and value to our customers.";
-            updater.updateMissionParagraph(newMission);
-            
-            System.out.println("Mission paragraph updated successfully!");
+            updater.updateInfoBoxImage("professional camera");
+            System.out.println("Image updated successfully!");
             
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());

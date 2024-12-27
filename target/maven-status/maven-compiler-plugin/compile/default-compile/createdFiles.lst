@@ -1,9 +1,12 @@
-com/zho/model/AboutPage.class
 com/zho/wordpress/WordPressConfig.class
 com/zho/content/IconFetcher.class
-com/zho/App.class
+com/zho/content/LogoGenerator.class
+com/zho/images/UnsplashImage.class
 com/zho/content/KeywordResearch.class
+com/zho/images/UnsplashClient.class
+com/zho/content/BlogNiche.class
+com/zho/model/AboutPage.class
+com/zho/App.class
 com/zho/content/AIContentGenerator.class
 com/zho/wordpress/WordPressUpdater.class
-com/zho/content/BlogNiche.class
 com/zho/model/BlogPost.class
