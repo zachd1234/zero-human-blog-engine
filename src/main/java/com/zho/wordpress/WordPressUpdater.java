@@ -32,16 +32,21 @@ import com.zho.images.UnsplashClient;
 import com.zho.images.UnsplashImage;
 import java.util.List;
 import org.apache.hc.client5.http.classic.methods.HttpDelete;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import org.apache.hc.client5.http.classic.methods.HttpPatch;
 
 
 public class WordPressUpdater {
     private CloseableHttpClient httpClient;
+    private AIContentGenerator generator;
 
     public WordPressUpdater() {
         this.httpClient = createHttpClient();
+        this.generator = new AIContentGenerator();
     }
 
-    public void updatePost(BlogPost post) {
+    public void updatePost(BlogPost post) throws IOException, ParseException {
         String url = WordPressConfig.BASE_URL + "posts/" + post.getId();
 
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
@@ -49,6 +54,40 @@ public class WordPressUpdater {
             executeRequest(httpClient, postRequest, "Post");
         } catch (Exception e) {
             e.printStackTrace();
+        }
+
+        // Get all categories
+        List<String> categories = getAllCategoryNames();
+        
+        // Ask GPT which category fits best
+        String prompt = String.format(
+            "Given these categories:\n%s\n\nWhich ONE category best fits this blog post title: '%s'?\n" +
+            "Reply with ONLY the exact category name, nothing else.",
+            String.join("\n", categories),
+            post.getTitle()
+        );
+        
+        String categoryName = generator.callOpenAI(prompt).trim();
+        
+        // Find category ID and update post
+        String updateUrl = WordPressConfig.BASE_URL + "posts/" + post.getId();
+        
+        // Debug print
+        System.out.println("Updating post with category ID: " + getCategoryId(categoryName));
+        
+        JSONObject updateData = new JSONObject();
+        JSONArray categoryIds = new JSONArray();
+        categoryIds.put(getCategoryId(categoryName));
+        updateData.put("categories", categoryIds);
+        
+        HttpPatch updateRequest = new HttpPatch(URI.create(updateUrl));  // Changed to PATCH
+        setAuthHeader(updateRequest);
+        updateRequest.setEntity(new StringEntity(updateData.toString(), StandardCharsets.UTF_8));
+        updateRequest.setHeader("Content-Type", "application/json");
+        
+        try (CloseableHttpResponse response = httpClient.execute(updateRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("Category update response: " + responseBody);
         }
     }
 
@@ -734,6 +773,39 @@ public class WordPressUpdater {
         try (CloseableHttpResponse response = httpClient.execute(deleteRequest)) {
             System.out.println("Deleted category ID: " + id);
         }
+    }
+
+    public List<String> getAllCategoryNames() throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "categories";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        List<String> categories = new ArrayList<>();
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONArray categoriesJson = new JSONArray(responseBody);
+            
+            for (int i = 0; i < categoriesJson.length(); i++) {
+                JSONObject category = categoriesJson.getJSONObject(i);
+                categories.add(category.getString("name"));
+            }
+        }
+        return categories;
+    }
+
+    private int getCategoryId(String categoryName) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "categories?search=" + URLEncoder.encode(categoryName, "UTF-8");
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONArray results = new JSONArray(responseBody);
+            if (results.length() > 0) {
+                return results.getJSONObject(0).getInt("id");
+            }
+        }
+        return 1; // Default to uncategorized if not found
     }
 
     public static void main(String[] args) {

@@ -45,6 +45,12 @@ public class App {
             AboutPage aboutPage = generator.generateAboutPage(niche);
             wpUpdater.updateAboutPage(aboutPage);
             
+            // Initialize topic configuration
+            TopicConfig topicConfig = new TopicConfig();
+            System.out.println("Updating topic sections...");
+            topicConfig.setupTopics(niche);
+                        
+            
             // 3. Generate and update blog posts
             System.out.println("Generating and updating blog posts...");
             List<BlogPost> posts = generator.generateBlogPosts(niche);
@@ -53,11 +59,6 @@ public class App {
             }
             
             wpUpdater.updateAllImages(niche);
-            
-            // Initialize topic configuration
-            TopicConfig topicConfig = new TopicConfig();
-            System.out.println("Updating topic sections...");
-            topicConfig.setupTopics(niche);
             
             System.out.println("Blog setup completed successfully!");
             

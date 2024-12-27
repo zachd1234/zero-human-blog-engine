@@ -49,7 +49,7 @@ public class TopicConfig {
     private List<Topic> generateTopics(BlogNiche niche) {
         String prompt = String.format(
             "Generate 6 specific subtopics for a blog about %s. For each subtopic:" +
-            "\n1. Create a clear, concise title (1-2 words)" +
+            "\n1. Create a clear, concise title (1-2 words maximum, no numbering)" +
             "\n2. Write a simple engaging sentence describing the subtopic" +
             "\nFormat: title|description for each topic, one per line",
             niche.getDisplayName()
