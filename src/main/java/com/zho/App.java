@@ -54,6 +54,11 @@ public class App {
             
             wpUpdater.updateAllImages(niche);
             
+            // Initialize topic configuration
+            TopicConfig topicConfig = new TopicConfig();
+            System.out.println("Updating topic sections...");
+            topicConfig.setupTopics(niche);
+            
             System.out.println("Blog setup completed successfully!");
             
         } catch (Exception e) {

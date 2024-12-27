@@ -35,7 +35,7 @@ public class AIContentGenerator {
         return posts;
     }
 
-    private String callOpenAI(String prompt) {
+    public String callOpenAI(String prompt) {
         OkHttpClient client = new OkHttpClient();
         JSONObject json = new JSONObject();
         json.put("model", "gpt-3.5-turbo");

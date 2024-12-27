@@ -13,6 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import com.zho.model.AboutPage;
 import com.zho.model.BlogPost;
+
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -29,6 +31,7 @@ import com.zho.content.BlogNiche;
 import com.zho.images.UnsplashClient;
 import com.zho.images.UnsplashImage;
 import java.util.List;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
 
 
 public class WordPressUpdater {
@@ -637,6 +640,99 @@ public class WordPressUpdater {
         HttpGet request = new HttpGet(URI.create(imageUrl));
         try (CloseableHttpResponse response = httpClient.execute(request)) {
             return EntityUtils.toByteArray(response.getEntity());
+        }
+    }
+
+    public void updatePageSection(int pageId, String sectionId, String newContent) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "pages/" + pageId + "?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject page = new JSONObject(responseBody);
+            
+            // Get the current content with all blocks
+            JSONObject content = page.getJSONObject("content");
+            String currentContent = content.getString("raw");
+            
+            // Debug print
+            System.out.println("Current content before update: " + currentContent);
+            
+            // Find our target block and replace just that one
+            String targetBlockPattern = "<!-- wp:group \\{\"layout\":\\{\"type\":\"flex\",\"orientation\":\"vertical\"\\}\\}[\\s\\S]*?<!-- /wp:group -->\\s*<!-- /wp:group -->";
+            String updatedContent = currentContent.replaceFirst(targetBlockPattern, newContent);
+            
+            // Create update payload with all content
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+            
+            // Send update
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                int statusCode = updateResponse.getCode();
+                String updateResponseBody = EntityUtils.toString(updateResponse.getEntity());
+                System.out.println("Update status: " + statusCode);
+                System.out.println("Response: " + updateResponseBody);
+            }
+        }
+    }
+
+    public void createCategory(String title) throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "categories";
+        
+        // Create JSON payload
+        JSONObject categoryData = new JSONObject();
+        categoryData.put("name", title);
+        
+        // Create POST request
+        HttpPost request = new HttpPost(URI.create(url));
+        setAuthHeader(request);
+        request.setEntity(new StringEntity(categoryData.toString(), StandardCharsets.UTF_8));
+        request.setHeader("Content-Type", "application/json");
+        
+        // Execute request
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            int statusCode = response.getCode();
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("Category creation status: " + statusCode);
+            System.out.println("Response: " + responseBody);
+        }
+    }
+
+        public void clearCategories() throws IOException, ParseException {
+        String url = WordPressConfig.BASE_URL + "categories";
+        
+        // First get all categories
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONArray categories = new JSONArray(responseBody);
+            
+            // Delete each category (except uncategorized which is ID 1)
+            for (int i = 0; i < categories.length(); i++) {
+                JSONObject category = categories.getJSONObject(i);
+                int id = category.getInt("id");
+                if (id != 1) {  // Skip 'uncategorized'
+                    deleteCategory(id);
+                }
+            }
+        }
+    }
+    
+    private void deleteCategory(int id) throws IOException {
+        String url = WordPressConfig.BASE_URL + "categories/" + id + "?force=true";
+        HttpDelete deleteRequest = new HttpDelete(URI.create(url));
+        setAuthHeader(deleteRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(deleteRequest)) {
+            System.out.println("Deleted category ID: " + id);
         }
     }
 
