@@ -46,28 +46,24 @@ public class LogoAndFaviconService {
     }
 
     public void generateAndUploadBranding(BlogRequest request) throws IOException, ParseException {
+        // Generate smart search term
         String searchTerm = generateIconSearchTerm(request);
         System.out.println("Generated icon search term: " + searchTerm);
 
         try {
             BufferedImage iconImage = fetchIconFromNounProject(searchTerm);
             
-            // Generate blog name first
-            String blogName = generateBlogName(request);
-            System.out.println("Generated blog name: " + blogName);
-            
-            // Generate and upload logo with the blog name
-            BufferedImage logo = generateLogo(iconImage, blogName);
+            // Generate and upload logo
+            BufferedImage logo = generateLogo(iconImage, request);
             mediaClient.updateSiteLogo(logo);
-            mediaClient.updateSiteName(blogName);
-            System.out.println("Successfully updated logo and site name");
+            System.out.println("Successfully updated logo");
             
             // Update favicon using the same icon
             mediaClient.updateFavicon(iconImage);
             System.out.println("Successfully updated favicon");
             
         } catch (IOException e) {
-            // Handle fallback with same pattern
+            // If first attempt fails, try a fallback term
             String fallbackTerm = generateIconSearchTerm(new BlogRequest("general " + request.getTopic(), "general " + request.getDescription()));
             System.out.println("Trying fallback search term: " + fallbackTerm);
             
@@ -76,12 +72,12 @@ public class LogoAndFaviconService {
                 throw new IOException("No icons found for topic or fallback: " + request.getTopic());
             }
             
-            String blogName = generateBlogName(request);
-            BufferedImage logo = generateLogo(iconImage, blogName);
+            // Generate and upload logo with fallback icon
+            BufferedImage logo = generateLogo(iconImage, request);
             mediaClient.updateSiteLogo(logo);
-            mediaClient.updateSiteName(blogName);
-            System.out.println("Successfully updated logo and site name with fallback");
+            System.out.println("Successfully updated logo with fallback icon");
             
+            // Update favicon with fallback icon
             mediaClient.updateFavicon(iconImage);
             System.out.println("Successfully updated favicon with fallback icon");
         }
@@ -129,8 +125,10 @@ public class LogoAndFaviconService {
         return finalName.trim();
     }
 
-    private BufferedImage generateLogo(BufferedImage icon, String blogName) throws IOException {
-        System.out.println("Creating logo with name: " + blogName);
+    private BufferedImage generateLogo(BufferedImage icon, BlogRequest request) throws IOException {
+        // Generate blog name using improved process
+        String blogName = generateBlogName(request);
+        System.out.println("Final blog name: " + blogName);
         
         // Create combined logo
         int width = 1000;
