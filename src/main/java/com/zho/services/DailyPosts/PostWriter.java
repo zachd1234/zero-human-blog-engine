@@ -1,4 +1,4 @@
-package com.zho.services.BlogContent;
+package com.zho.services.DailyPosts;
 
 import java.io.IOException;
 import org.apache.hc.core5.http.ParseException;
@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.ArrayList;
 import com.zho.api.OpenAIClient;
 
-public class BlogPostEngine {
+public class PostWriter {
     private final OpenAIClient openAIClient;
     private String currentOutline;
     private List<String> generatedSections;
 
-    public BlogPostEngine(OpenAIClient openAIClient) {
+    public PostWriter(OpenAIClient openAIClient) {
         this.openAIClient = openAIClient;
         this.generatedSections = new ArrayList<>();
     }
@@ -171,10 +171,10 @@ public class BlogPostEngine {
         try {
             // Initialize dependencies
             OpenAIClient openAIClient = new OpenAIClient();
-            BlogPostEngine engine = new BlogPostEngine(openAIClient);
+            PostWriter engine = new PostWriter(openAIClient);
             
             // Test blog post generation
-            String keyword = "do pickles lower testosterone";
+            String keyword = "environmental impact assessment report for housing development";
             System.out.println("Testing blog post generation for: " + keyword);
             // Generate full post
             String fullPost = engine.createNewBlogPost(keyword);
