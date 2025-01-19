@@ -13,4 +13,5 @@ logback.xml
 *.properties
 *.yaml
 *.md
+*.history
 !.mvn/wrapper/maven-wrapper.jar

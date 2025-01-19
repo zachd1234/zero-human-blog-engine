@@ -6,26 +6,35 @@ import java.util.Properties;
 
 public class ConfigManager {
     private static ConfigManager instance;
-    private static final Properties properties = new Properties();
+    private static final Properties properties;
+
+    // Initialize properties in static block
+    static {
+        properties = new Properties();
+        try {
+            System.out.println("Loading application.properties...");
+            InputStream input = ConfigManager.class.getClassLoader().getResourceAsStream("application.properties");
+            if (input != null) {
+                properties.load(input);
+                System.out.println("Properties loaded successfully");
+            } else {
+                System.out.println("application.properties not found in classpath");
+            }
+        } catch (IOException ex) {
+            System.err.println("Could not load application.properties: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    private ConfigManager() {
+        // private constructor
+    }
 
     public static ConfigManager getInstance() {
         if (instance == null) {
             instance = new ConfigManager();
         }
         return instance;
-    }
-
-    private ConfigManager() {
-        // Load properties file if it exists
-        try {
-            InputStream input = ConfigManager.class.getClassLoader().getResourceAsStream("application.properties");
-            if (input != null) {
-                properties.load(input);
-            }
-        } catch (IOException ex) {
-            // Just log it - we'll fall back to env vars if needed
-            System.err.println("Could not load application.properties: " + ex.getMessage());
-        }
     }
 
     // WordPress
