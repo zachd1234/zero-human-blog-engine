@@ -1,0 +1,15 @@
+*.jar
+*.class
+target/
+.vscode/
+run-autoblog.sh
+*.log
+*.txt
+*.sql
+*.json
+*.csv
+*.xml
+*.properties
+*.yaml
+*.yml
+*.md
