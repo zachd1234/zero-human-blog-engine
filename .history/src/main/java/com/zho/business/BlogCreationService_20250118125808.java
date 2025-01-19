@@ -23,6 +23,7 @@ public class BlogCreationService {
     private final DatabaseService dbService;
     private final CategoryService categoryService;
     private final LogoAndFaviconService logoService;
+    private final BlogPostService blogPostService;
     private final StaticContentService staticContentService;
     private final PersonaService personaService;
     private final ContentEngineService contentEngineService;
