@@ -1,4 +1,3 @@
-
 package com.zho.config;
 
 import java.io.IOException;
@@ -7,7 +6,7 @@ import java.util.Properties;
 
 public class ConfigManager {
     private static ConfigManager instance;
-
+    
     public static ConfigManager getInstance() {
         if (instance == null) {
             instance = new ConfigManager();
@@ -20,14 +19,14 @@ public class ConfigManager {
     }
 
     private static final Properties properties = new Properties();
-
+    
     static {
         try {
             // Get environment variables first
             String dbUrl = System.getenv("DB_URL");
             String dbUser = System.getenv("DB_USER");
             String dbPassword = System.getenv("DB_PASSWORD");
-
+            
             if (dbUrl != null && dbUser != null && dbPassword != null) {
                 // If env vars exist, use them
                 properties.setProperty("db.url", dbUrl);
@@ -46,7 +45,7 @@ public class ConfigManager {
             throw new RuntimeException("Unable to load configuration", ex);
         }
     }
-
+    
     // WordPress
     public static String getWpBaseUrl() {
         String envVar = System.getenv("WP_URL");
@@ -159,34 +158,34 @@ public class ConfigManager {
     // Add this main method to test configuration loading
     public static void main(String[] args) {
         System.out.println("Testing configuration loading...\n");
-
+        
         // WordPress
         System.out.println("WordPress Configuration:");
         System.out.println("Base URL: " + getWpBaseUrl());
         System.out.println("Username exists: " + (getWpUsername() != null));
         System.out.println("Password exists: " + (getWpPassword() != null));
-
+        
         // Database
         System.out.println("\nDatabase Configuration:");
         System.out.println("URL: " + getDbUrl());
         System.out.println("User exists: " + (getDbUser() != null));
         System.out.println("Password exists: " + (getDbPassword() != null));
-
+        
         // OpenAI
         System.out.println("\nOpenAI Configuration:");
         System.out.println("API Key exists: " + (getOpenAiKey() != null));
         System.out.println("API URL: " + getOpenAiUrl());
-
+        
         // Unsplash
         System.out.println("\nUnsplash Configuration:");
         System.out.println("API URL: " + getUnsplashUrl());
         System.out.println("Access Key exists: " + (getUnsplashKey() != null));
-
+        
         // Noun Project
         System.out.println("\nNoun Project Configuration:");
         System.out.println("API Key exists: " + (getNounProjectKey() != null));
         System.out.println("API Secret exists: " + (getNounProjectSecret() != null));
-
+        
         // Google Ads
         System.out.println("\nGoogle Ads Configuration:");
         System.out.println("Client ID exists: " + (getGoogleAdsClientId() != null));
@@ -194,7 +193,7 @@ public class ConfigManager {
         System.out.println("Developer Token exists: " + (getGoogleAdsDeveloperToken() != null));
         System.out.println("Login Customer ID exists: " + (getGoogleAdsLoginCustomerId() != null));
         System.out.println("Refresh Token exists: " + (getGoogleAdsRefreshToken() != null));
-
+        
         System.out.println("\nAll configurations loaded successfully!");
     }
 } 
