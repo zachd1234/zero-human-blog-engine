@@ -105,27 +105,27 @@ public class ConfigManager {
     // Google Ads
     public static String getGoogleAdsClientId() {
         String envVar = System.getenv("GOOGLE_ADS_CLIENT_ID");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.clientId");
+        return envVar != null ? envVar : properties.getProperty("googleads.client.id");
     }
 
     public static String getGoogleAdsClientSecret() {
         String envVar = System.getenv("GOOGLE_ADS_CLIENT_SECRET");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.clientSecret");
+        return envVar != null ? envVar : properties.getProperty("googleads.client.secret");
     }
 
     public static String getGoogleAdsDeveloperToken() {
         String envVar = System.getenv("GOOGLE_ADS_DEV_TOKEN");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.developerToken");
+        return envVar != null ? envVar : properties.getProperty("googleads.developer.token");
     }
 
     public static String getGoogleAdsLoginCustomerId() {
         String envVar = System.getenv("GOOGLE_ADS_CUSTOMER_ID");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.loginCustomerId");
+        return envVar != null ? envVar : properties.getProperty("googleads.login.customer.id");
     }
 
     public static String getGoogleAdsRefreshToken() {
         String envVar = System.getenv("GOOGLE_ADS_REFRESH_TOKEN");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.refreshToken");
+        return envVar != null ? envVar : properties.getProperty("googleads.refresh.token");
     }
 
     // GetImg.ai
@@ -147,38 +147,38 @@ public class ConfigManager {
         
         // WordPress
         System.out.println("WordPress Configuration:");
-        System.out.println("Base URL: " + getWpBaseUrl());
-        System.out.println("Username exists: " + (getWpUsername() != null));
-        System.out.println("Password exists: " + (getWpPassword() != null));
+        System.out.println("Base URL: " + properties.getProperty("wordpress.base.url"));
+        System.out.println("Username exists: " + (properties.getProperty("wordpress.username") != null));
+        System.out.println("Password exists: " + (properties.getProperty("wordpress.password") != null));
         
         // Database
         System.out.println("\nDatabase Configuration:");
-        System.out.println("URL: " + getDbUrl());
-        System.out.println("User exists: " + (getDbUser() != null));
-        System.out.println("Password exists: " + (getDbPassword() != null));
+        System.out.println("URL: " + properties.getProperty("database.url"));
+        System.out.println("User exists: " + (properties.getProperty("database.user") != null));
+        System.out.println("Password exists: " + (properties.getProperty("database.password") != null));
         
         // OpenAI
         System.out.println("\nOpenAI Configuration:");
-        System.out.println("API Key exists: " + (getOpenAiKey() != null));
-        System.out.println("API URL: " + getOpenAiUrl());
+        System.out.println("API Key exists: " + (properties.getProperty("openai.api.key") != null));
+        System.out.println("API URL: " + properties.getProperty("openai.api.url"));
         
         // Unsplash
         System.out.println("\nUnsplash Configuration:");
-        System.out.println("API URL: " + getUnsplashUrl());
-        System.out.println("Access Key exists: " + (getUnsplashKey() != null));
+        System.out.println("API URL: " + properties.getProperty("unsplash.api.url"));
+        System.out.println("Access Key exists: " + (properties.getProperty("unsplash.access.key") != null));
         
         // Noun Project
         System.out.println("\nNoun Project Configuration:");
-        System.out.println("API Key exists: " + (getNounProjectKey() != null));
-        System.out.println("API Secret exists: " + (getNounProjectSecret() != null));
+        System.out.println("API Key exists: " + (properties.getProperty("nounproject.api.key") != null));
+        System.out.println("API Secret exists: " + (properties.getProperty("nounproject.api.secret") != null));
         
         // Google Ads
         System.out.println("\nGoogle Ads Configuration:");
-        System.out.println("Client ID exists: " + (getGoogleAdsClientId() != null));
-        System.out.println("Client Secret exists: " + (getGoogleAdsClientSecret() != null));
-        System.out.println("Developer Token exists: " + (getGoogleAdsDeveloperToken() != null));
-        System.out.println("Login Customer ID exists: " + (getGoogleAdsLoginCustomerId() != null));
-        System.out.println("Refresh Token exists: " + (getGoogleAdsRefreshToken() != null));
+        System.out.println("Client ID exists: " + (properties.getProperty("googleads.client.id") != null));
+        System.out.println("Client Secret exists: " + (properties.getProperty("googleads.client.secret") != null));
+        System.out.println("Developer Token exists: " + (properties.getProperty("googleads.developer.token") != null));
+        System.out.println("Login Customer ID exists: " + (properties.getProperty("googleads.login.customer.id") != null));
+        System.out.println("Refresh Token exists: " + (properties.getProperty("googleads.refresh.token") != null));
         
         System.out.println("\nAll configurations loaded successfully!");
     }

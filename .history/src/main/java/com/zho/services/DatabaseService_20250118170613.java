@@ -12,8 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.sql.PreparedStatement;
 import com.zho.model.KeywordAnalysis;
-import java.util.ServiceLoader;
-import java.sql.Driver;
 
 public class DatabaseService {
     //in technical debt 
@@ -256,60 +254,14 @@ public class DatabaseService {
         }
     }
     
-    public static Connection getConnection() {
-        try {
-            System.out.println("=== DATABASE CONNECTION DEBUG START ===");
-            System.out.println("1. Starting connection process...");
-            
-            // Load drivers using ServiceLoader
-            System.out.println("2. Loading MySQL drivers via ServiceLoader...");
-            ServiceLoader<Driver> drivers = ServiceLoader.load(Driver.class);
-            boolean foundDriver = false;
-            for (Driver driver : drivers) {
-                System.out.println("   Found driver: " + driver.getClass().getName());
-                foundDriver = true;
-            }
-            
-            if (!foundDriver) {
-                System.out.println("   ✗ No JDBC drivers found via ServiceLoader");
-            }
-            
-            // Get connection details
-            String url = ConfigManager.getDbUrl();
-            String user = ConfigManager.getDbUser();
-            String password = ConfigManager.getDbPassword();
-            
-            System.out.println("3. Connection details:");
-            System.out.println("   URL: " + url);
-            System.out.println("   User: " + user);
-            System.out.println("   Password: [HIDDEN]");
-            
-            System.out.println("4. Attempting database connection...");
-            
-            // Try to connect
-            Connection conn = DriverManager.getConnection(url, user, password);
-            
-            if (conn != null) {
-                System.out.println("5. ✓ Database connection successful!");
-                System.out.println("   Connected to: " + conn.getCatalog());
-            } else {
-                System.out.println("5. ✗ Connection object is null!");
-            }
-            
-            System.out.println("=== DATABASE CONNECTION DEBUG END ===");
-            return conn;
-            
-        } catch (SQLException e) {
-            System.out.println("✗ SQL Exception occurred:");
-            System.out.println("Error message: " + e.getMessage());
-            System.out.println("SQL State: " + e.getSQLState());
-            System.out.println("Error Code: " + e.getErrorCode());
-            System.out.println("Stack trace:");
-            e.printStackTrace();
-            return null;
-        }
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(
+            ConfigManager.getDbUrl(),
+            ConfigManager.getDbUser(),
+            ConfigManager.getDbPassword()
+        );
     }
-    
+
     public void clearKeywords() throws SQLException {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {

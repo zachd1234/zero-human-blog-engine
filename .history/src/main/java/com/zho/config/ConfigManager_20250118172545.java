@@ -105,27 +105,27 @@ public class ConfigManager {
     // Google Ads
     public static String getGoogleAdsClientId() {
         String envVar = System.getenv("GOOGLE_ADS_CLIENT_ID");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.clientId");
+        return envVar != null ? envVar : properties.getProperty("googleads.client.id");
     }
 
     public static String getGoogleAdsClientSecret() {
         String envVar = System.getenv("GOOGLE_ADS_CLIENT_SECRET");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.clientSecret");
+        return envVar != null ? envVar : properties.getProperty("googleads.client.secret");
     }
 
     public static String getGoogleAdsDeveloperToken() {
         String envVar = System.getenv("GOOGLE_ADS_DEV_TOKEN");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.developerToken");
+        return envVar != null ? envVar : properties.getProperty("googleads.developer.token");
     }
 
     public static String getGoogleAdsLoginCustomerId() {
         String envVar = System.getenv("GOOGLE_ADS_CUSTOMER_ID");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.loginCustomerId");
+        return envVar != null ? envVar : properties.getProperty("googleads.login.customer.id");
     }
 
     public static String getGoogleAdsRefreshToken() {
         String envVar = System.getenv("GOOGLE_ADS_REFRESH_TOKEN");
-        return envVar != null ? envVar : properties.getProperty("api.googleads.refreshToken");
+        return envVar != null ? envVar : properties.getProperty("googleads.refresh.token");
     }
 
     // GetImg.ai

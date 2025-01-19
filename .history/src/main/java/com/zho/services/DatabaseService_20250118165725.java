@@ -12,8 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.sql.PreparedStatement;
 import com.zho.model.KeywordAnalysis;
-import java.util.ServiceLoader;
-import java.sql.Driver;
 
 public class DatabaseService {
     //in technical debt 
@@ -22,11 +20,6 @@ public class DatabaseService {
         try {
             clearTopics();
             clearPersonas();
-            
-            if(!isBlogActive()) {
-                toggleBlogStatus();
-            }
-
         } catch (SQLException e) {
             System.err.println("Error clearing database tables: " + e.getMessage());
             throw e;
@@ -256,60 +249,14 @@ public class DatabaseService {
         }
     }
     
-    public static Connection getConnection() {
-        try {
-            System.out.println("=== DATABASE CONNECTION DEBUG START ===");
-            System.out.println("1. Starting connection process...");
-            
-            // Load drivers using ServiceLoader
-            System.out.println("2. Loading MySQL drivers via ServiceLoader...");
-            ServiceLoader<Driver> drivers = ServiceLoader.load(Driver.class);
-            boolean foundDriver = false;
-            for (Driver driver : drivers) {
-                System.out.println("   Found driver: " + driver.getClass().getName());
-                foundDriver = true;
-            }
-            
-            if (!foundDriver) {
-                System.out.println("   ✗ No JDBC drivers found via ServiceLoader");
-            }
-            
-            // Get connection details
-            String url = ConfigManager.getDbUrl();
-            String user = ConfigManager.getDbUser();
-            String password = ConfigManager.getDbPassword();
-            
-            System.out.println("3. Connection details:");
-            System.out.println("   URL: " + url);
-            System.out.println("   User: " + user);
-            System.out.println("   Password: [HIDDEN]");
-            
-            System.out.println("4. Attempting database connection...");
-            
-            // Try to connect
-            Connection conn = DriverManager.getConnection(url, user, password);
-            
-            if (conn != null) {
-                System.out.println("5. ✓ Database connection successful!");
-                System.out.println("   Connected to: " + conn.getCatalog());
-            } else {
-                System.out.println("5. ✗ Connection object is null!");
-            }
-            
-            System.out.println("=== DATABASE CONNECTION DEBUG END ===");
-            return conn;
-            
-        } catch (SQLException e) {
-            System.out.println("✗ SQL Exception occurred:");
-            System.out.println("Error message: " + e.getMessage());
-            System.out.println("SQL State: " + e.getSQLState());
-            System.out.println("Error Code: " + e.getErrorCode());
-            System.out.println("Stack trace:");
-            e.printStackTrace();
-            return null;
-        }
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(
+            ConfigManager.getDbUrl(),
+            ConfigManager.getDbUser(),
+            ConfigManager.getDbPassword()
+        );
     }
-    
+
     public void clearKeywords() throws SQLException {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
@@ -453,21 +400,25 @@ public class DatabaseService {
             return rs.next() && rs.getBoolean("is_active");
         }
     }
-    
-    public void toggleBlogStatus() throws SQLException {
-        String sql = "UPDATE blog_status SET is_active = NOT is_active";
+
+    public void setBlogActive(boolean active) throws SQLException {
+        String sql = "UPDATE blog_status SET is_active = ?";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.executeUpdate();  // Use executeUpdate() for UPDATE statements
-            
-            // Get new status with separate query
-            sql = "SELECT is_active FROM blog_status LIMIT 1";
-            try (PreparedStatement checkStmt = conn.prepareStatement(sql)) {
-                ResultSet rs = checkStmt.executeQuery();
-                if (rs.next()) {
-                    boolean newStatus = rs.getBoolean("is_active");
-                    System.out.println("Blog status toggled to: " + newStatus);
-                }
+            stmt.setBoolean(1, active);
+            stmt.executeUpdate();
+            System.out.println("Blog status set to: " + active);
+        }
+    }
+
+    public void toggleBlogStatus() throws SQLException {
+        String sql = "UPDATE blog_status SET is_active = NOT is_active RETURNING is_active";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                boolean newStatus = rs.getBoolean("is_active");
+                System.out.println("Blog status toggled to: " + newStatus);
             }
         }
     }

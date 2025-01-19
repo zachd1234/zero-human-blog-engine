@@ -1,5 +1,9 @@
+package com.zho.services.DailyPosts.lambda;
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.zho.services.DatabaseService;
+import com.zho.services.DailyPosts.AutoContentWorkflowService; 
 
 public class ContentGenerationHandler implements RequestHandler<Object, String> {
     @Override

@@ -12,8 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.sql.PreparedStatement;
 import com.zho.model.KeywordAnalysis;
-import java.util.ServiceLoader;
-import java.sql.Driver;
 
 public class DatabaseService {
     //in technical debt 
@@ -261,17 +259,15 @@ public class DatabaseService {
             System.out.println("=== DATABASE CONNECTION DEBUG START ===");
             System.out.println("1. Starting connection process...");
             
-            // Load drivers using ServiceLoader
-            System.out.println("2. Loading MySQL drivers via ServiceLoader...");
-            ServiceLoader<Driver> drivers = ServiceLoader.load(Driver.class);
-            boolean foundDriver = false;
-            for (Driver driver : drivers) {
-                System.out.println("   Found driver: " + driver.getClass().getName());
-                foundDriver = true;
-            }
-            
-            if (!foundDriver) {
-                System.out.println("   ✗ No JDBC drivers found via ServiceLoader");
+            // Register driver directly
+            try {
+                System.out.println("2. Registering MySQL driver...");
+                DriverManager.registerDriver(new com.mysql.cj.jdbc.Driver());
+                System.out.println("3. ✓ MySQL driver registered successfully!");
+            } catch (SQLException e) {
+                System.out.println("3. ✗ Failed to register MySQL driver: " + e.getMessage());
+                e.printStackTrace();
+                return null;
             }
             
             // Get connection details
@@ -279,21 +275,21 @@ public class DatabaseService {
             String user = ConfigManager.getDbUser();
             String password = ConfigManager.getDbPassword();
             
-            System.out.println("3. Connection details:");
+            System.out.println("4. Connection details:");
             System.out.println("   URL: " + url);
             System.out.println("   User: " + user);
             System.out.println("   Password: [HIDDEN]");
             
-            System.out.println("4. Attempting database connection...");
+            System.out.println("5. Attempting database connection...");
             
             // Try to connect
             Connection conn = DriverManager.getConnection(url, user, password);
             
             if (conn != null) {
-                System.out.println("5. ✓ Database connection successful!");
+                System.out.println("6. ✓ Database connection successful!");
                 System.out.println("   Connected to: " + conn.getCatalog());
             } else {
-                System.out.println("5. ✗ Connection object is null!");
+                System.out.println("6. ✗ Connection object is null!");
             }
             
             System.out.println("=== DATABASE CONNECTION DEBUG END ===");

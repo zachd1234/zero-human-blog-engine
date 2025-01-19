@@ -39,10 +39,15 @@ public class ContentEngineService {
             for (int i = 0; i < initialPostCount; i++) {
                 System.out.println("\n=== Generating Post " + (i + 1) + " ===");
                 autoContentWorkflowService.processNextKeyword();
-            }            
+            }
+            
+            // Generate second post
+            System.out.println("\n=== Generating Second Post ===");
+            autoContentWorkflowService.processNextKeyword();
+            
 
             // 3. Start the automated content workflow
-            //startScheduledContentCreation();
+            startScheduledContentCreation();
             
             System.out.println("Content Engine started successfully");
             System.out.println("Found " + keywords.size() + " keywords");
