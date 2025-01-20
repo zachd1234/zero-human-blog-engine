@@ -11,7 +11,6 @@ public class ContentGenerationHandler implements RequestHandler<Object, String> 
         try {
 
             // Add a test log message somewhere in your code
-            System.out.println("Jar File Upload is automated!");        
             System.out.println("ContentGenerationHandler called");
             DatabaseService db = new DatabaseService();
             
