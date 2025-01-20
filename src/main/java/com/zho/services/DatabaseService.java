@@ -296,7 +296,6 @@ public class DatabaseService {
                 System.out.println("5. ✗ Connection object is null!");
             }
             
-            System.out.println("=== DATABASE CONNECTION DEBUG END ===");
             return conn;
             
         } catch (SQLException e) {
