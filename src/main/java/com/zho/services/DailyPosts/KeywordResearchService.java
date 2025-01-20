@@ -45,6 +45,8 @@ public class KeywordResearchService {
     public List<KeywordAnalysis> getLongTailKeywords(BlogRequest blogRequest, int keywordCount) {
         try {
             // First part: Get keywords from Google Ads API (existing code)
+
+            
             List<String> seedKeywords = generateSeedKeywords(blogRequest);
             
             System.out.println("\nUsing seed keywords:");
