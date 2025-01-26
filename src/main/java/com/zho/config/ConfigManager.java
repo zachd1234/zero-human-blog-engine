@@ -144,6 +144,33 @@ public class ConfigManager {
         return envVar != null ? envVar : properties.getProperty("getimg.ai.url");
     }
 
+    // GoDaddy API
+    public static String getGoDaddyApiKey() {
+        String envVar = System.getenv("GODADDY_API_KEY");
+        return envVar != null ? envVar : properties.getProperty("godaddy.api.key");
+    }
+
+    public static String getGoDaddyApiSecret() {
+        String envVar = System.getenv("GODADDY_API_SECRET");
+        return envVar != null ? envVar : properties.getProperty("godaddy.api.secret");
+    }
+
+    public static String getGoDaddyApiUrl() {
+        String envVar = System.getenv("GODADDY_API_URL");
+        return envVar != null ? envVar : properties.getProperty("godaddy.api.url", "https://api.ote-godaddy.com/v1/");
+    }
+
+    // Recraft API
+    public static String getRecraftApiUrl() {
+        String envVar = System.getenv("RECRAFT_API_URL");
+        return envVar != null ? envVar : properties.getProperty("recraft.api.url", "https://external.api.recraft.ai/v1");
+    }
+
+    public static String getRecraftApiKey() {
+        String envVar = System.getenv("RECRAFT_API_KEY");
+        return envVar != null ? envVar : properties.getProperty("recraft.api.key");
+    }
+
     // Add more getters as needed
 
     // Add this main method to test configuration loading

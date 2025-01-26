@@ -10,6 +10,7 @@ import com.zho.model.BlogRequest;
 import com.zho.api.OpenAIClient;
 import java.sql.SQLException;
 import com.zho.services.DatabaseService;
+import com.zho.model.Site;
 
 public class CategoryService {
     private final OpenAIClient openai;
@@ -56,7 +57,15 @@ public class CategoryService {
 
     private List<Topic> parseTopicsResponse(String response) {
         List<Topic> topics = new ArrayList<>();
-        String blogLink = "https://mbt.dsc.mybluehost.me/blog-2/";
+        int siteId = Site.getCurrentSite().getSiteId();  // Assuming you have a method to get the current site ID
+
+        String blogLink;
+        if (siteId == 1) {
+            blogLink = "https://website-77d59705.mbt.dsc.mybluehost.me/blog/";
+        } else {
+            blogLink = "https://mbt.dsc.mybluehost.me/blog/";
+        }
+
         String[] lines = response.split("\n");
 
         for (String line : lines) {

@@ -27,13 +27,16 @@ public class ContentEngineService {
     
     public void startContentEngine(BlogRequest request) {
         try {
-            // 1. Perform keyword research
-            final int keywordCount = 25; //production level is 1000
-            List<KeywordAnalysis> keywords = keywordResearchService.getLongTailKeywords(request, keywordCount);
-            
-            // 2. Save to database
+
             databaseService.clearKeywords();
+
+            // 1. Perform keyword research
+            final int keywordCount = 25; //production level is 1000. Testing is 25
+            List<KeywordAnalysis> keywords = keywordResearchService.getLongTailKeywords(request, keywordCount);
+
+            // 2. Save to database
             databaseService.saveKeywords(keywords);
+            
             
             final int initialPostCount = 2; 
             for (int i = 0; i < initialPostCount; i++) {
@@ -79,7 +82,7 @@ public class ContentEngineService {
     public static void main(String[] args) {
         try {
             // Create test keywords
-            BlogRequest request = new BlogRequest("cupcakes", "a blog about cupcakes");
+            BlogRequest request = new BlogRequest("boxing", "boxing.");
             ContentEngineService contentEngineService = new ContentEngineService();
             contentEngineService.startContentEngine(request);
 

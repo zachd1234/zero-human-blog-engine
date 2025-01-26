@@ -4,6 +4,7 @@ import java.util.*;
 import com.zho.model.BlogRequest;
 import com.zho.model.Image;
 import com.zho.api.wordpress.WordPressBlockClient;
+import com.zho.api.GetImgAIClient;
 import com.zho.api.OpenAIClient;
 import com.zho.api.UnsplashClient;
 
@@ -14,6 +15,7 @@ import com.zho.services.DatabaseService;
 import com.zho.services.BlogSetup.StaticContent.pages.AboutPage;
 import com.zho.services.BlogSetup.StaticContent.pages.HomePage;
 import com.zho.services.BlogSetup.StaticContent.pages.StaticPage;
+import java.util.stream.Collectors;
 
 public class StaticContentService {
     private final List<StaticPage> pages;
@@ -54,19 +56,33 @@ public class StaticContentService {
         int imageIndex = 0;
         for (StaticPage page : pages) {
             int imagesNeeded = page.getRequiredImageCount();
-            List<Image> pageImages = new ArrayList<>(
-                siteImages.subList(imageIndex, imageIndex + imagesNeeded)
-            );
-            
-            try {
-                System.out.println("Updating " + page.getPageName() + " page with " + imagesNeeded + " images...");
-                page.updateStaticContent(request, pageImages);
-                System.out.println(page.getPageName() + " page updated successfully");
+            if (imageIndex + imagesNeeded <= siteImages.size()) {
+                List<Image> pageImages = new ArrayList<>(
+                    siteImages.subList(imageIndex, imageIndex + imagesNeeded)
+                );
                 
-                imageIndex += imagesNeeded;
-            } catch (Exception e) {
-                System.err.println("Error updating " + page.getPageName() + " page: " + e.getMessage());
-                e.printStackTrace();
+                try {
+                    System.out.println("Updating " + page.getPageName() + " page with " + pageImages.size() + " images...");
+                    page.updateStaticContent(request, pageImages);
+                    System.out.println(page.getPageName() + " page updated successfully");
+                    
+                    imageIndex += imagesNeeded;
+                } catch (Exception e) {
+                    System.err.println("Error updating " + page.getPageName() + " page: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            } else {
+                System.err.println("Warning: Not enough images for " + page.getPageName() + " page. Needed " + imagesNeeded + " but only had " + (siteImages.size() - imageIndex) + " remaining.");
+                List<Image> pageImages = new ArrayList<>(
+                    siteImages.subList(imageIndex, siteImages.size())
+                );
+                try {
+                    page.updateStaticContent(request, pageImages);
+                } catch (Exception e) {
+                    System.err.println("Error updating " + page.getPageName() + " page: " + e.getMessage());
+                    e.printStackTrace();
+                }
+                break;
             }
         }
     }
@@ -101,17 +117,118 @@ public class StaticContentService {
         String searchTerm = generateImageSearchTerm(request);
         System.out.println("Fetching " + totalImagesNeeded + " images for theme: " + searchTerm);
         
+        // Step 1: Fetch initial images from Unsplash
         List<Image> images = unsplashClient.searchImages(searchTerm, totalImagesNeeded);
         System.out.println("Successfully fetched " + images.size() + " images");
         
-        return images;
+        // Step 2: Validate images with ChatGPT
+        List<Image> validImages = new ArrayList<>();
+        int aiImagesNeeded = 0;
+                
+        for (Image image : images) {
+            String validationPrompt = String.format(
+                "Is this image description directly relevant to a blog about '%s' with description '%s'? " +
+                "Image description: '%s'. " +
+                "Answer with only 'yes' if it is directly related and highly relevant. Otherwise, answer with 'no'.",
+                request.getTopic(),
+                request.getDescription(),
+                image.getDescription()
+            );
+
+            
+            String response = openAIClient.callOpenAI(validationPrompt, 0.7).trim().toLowerCase();
+            if (response.equals("yes")) {
+                validImages.add(image);
+            } else {
+                aiImagesNeeded++;
+            }
+        }
+        
+        // Step 3: Generate AI image prompts if needed
+        if (aiImagesNeeded > 0) {
+            String promptGenerationPrompt = String.format(
+                "Generate %d unique, detailed image prompts for a blog about '%s' with description '%s'. " +
+                "Each prompt should be specific and visually descriptive. " +
+                "Return as a numbered list, one prompt per line.",
+                aiImagesNeeded,
+                request.getTopic(),
+                request.getDescription()
+            );
+
+            // Log the prompt being sent to OpenAI
+            System.out.println("Prompt for OpenAI: " + promptGenerationPrompt);
+
+            String promptsResponse = openAIClient.callOpenAI(promptGenerationPrompt, 0.7);
+            
+            // Log the response from OpenAI
+            System.out.println("Response from OpenAI: " + promptsResponse);
+
+            // Check if the response is empty or null
+            if (promptsResponse == null || promptsResponse.trim().isEmpty()) {
+                System.err.println("Received empty response from OpenAI. Using fallback prompt.");
+
+                // Fallback prompt
+                promptsResponse = String.format(
+                    "Generate a generic image prompt for a blog about '%s' with description '%s'.",
+                    request.getTopic(),
+                    request.getDescription()
+                );
+
+                // Log the fallback prompt
+                System.out.println("Fallback Prompt: " + promptsResponse);
+
+                // Call OpenAI again with the fallback prompt
+                promptsResponse = openAIClient.callOpenAI(promptsResponse, 0.7);
+            }
+
+            // Proceed to parse the prompts
+            List<String> imagePrompts = Arrays.stream(promptsResponse.split("\n"))
+                .map(prompt -> prompt.replaceAll("^\\d+\\.\\s*", "")) // Remove numbered list format
+                .map(prompt -> prompt.replaceAll("^\\*\\*.*?\\*\\*:\\s*", "")) // Remove bold headers
+                .map(String::trim)
+                .filter(prompt -> !prompt.isEmpty()) // Filter out empty strings
+                .collect(Collectors.toList());
+
+            // Log the parsed image prompts
+            System.out.println("Parsed Image Prompts: " + imagePrompts);
+
+            // Step 4: Generate images for each prompt
+            for (int i = 0; i < aiImagesNeeded && i < imagePrompts.size(); i++) {
+                try {
+                    Image generatedImage = generateImageFromPrompt(imagePrompts.get(i));
+                    validImages.add(generatedImage);
+                    System.out.println("Generated image from prompt: " + imagePrompts.get(i));
+                } catch (Exception e) {
+                    System.err.println("Failed to generate image for prompt: " + imagePrompts.get(i));
+                    e.printStackTrace();
+                }
+            }
+        }
+        
+        System.out.println("Final image count: " + validImages.size() + 
+                          " (Original: " + images.size() + 
+                          ", AI-generated: " + aiImagesNeeded + ")");
+        
+        return validImages;
     }
 
+    // Helper method to generate an image from a prompt
+    private Image generateImageFromPrompt(String prompt) throws IOException, ParseException {
+        GetImgAIClient getImgAIClient = new GetImgAIClient();
+        
+        // Get the temporary URL from GetImg AI
+        String tempImageUrl = getImgAIClient.generateImage(prompt);
+        
+        // Download and upload to WordPress media library
+        String permanentUrl = mediaClient.uploadImageFromUrl(tempImageUrl);
+        
+        return new Image("", permanentUrl, prompt);  // Use the permanent WordPress URL
+    }
 
     public static void main(String[] args) {
         try {
             // Create test blog requests
-            BlogRequest testRequest = new BlogRequest("Tennis Coaching", "Learn tennis from professional coaches");
+            BlogRequest testRequest = new BlogRequest("rucking", "Rooted in military training, Rucking combines strength and cardio into one powerful workout. Discover tips, gear reviews, and training plans to help you build endurance, burn calories, and enjoy the outdoors—all with just a weighted backpack");
             // Initialize service
             StaticContentService service = new StaticContentService();
             

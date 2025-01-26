@@ -59,7 +59,7 @@ public class OpenAIClient {
     public String callOpenAI(String prompt, double temperature) throws IOException {
         OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .build();
         

@@ -104,18 +104,25 @@ public class PersonaService {
     private void generateBasicPersona(String topic, String stereotypicalDescription) throws IOException {
         String personaPrompt = String.format(
             "Create a persona for a %s expert. " +
-            "The persona should be someone who is highly knowledgeable and experienced in %s. " +
-            "Here's a stereotypical description to help guide the persona creation: %s " +
+            "The persona should be someone who is experienced in %s. " +
+            "Here's a stereotypical description to help guide the persona creation: %s. " +
             "Format the response as a JSON object with these fields: " +
-            "Include specifc personal details about their life." +
-            "name (full name) (make it realistic and believable), " +
-            "expertise (specific area of expertise) (first person), " +
-            "biography (1-2 paragraphs about their background and experience) (first person)",
+            "name (full realistic name), " +
+            "expertise (specific area of expertise), " +
+            "biography (1-2 paragraphs about their background and experience. Speak in first person). " +
+            "Include specific personal details about their life.",
             topic, topic, stereotypicalDescription
         );
         
         String response = openAIClient.callGPT4(personaPrompt);
-                
+        
+        // Log the response for debugging
+        System.out.println("Response from OpenAI: " + response);
+        
+        if (response == null || response.isEmpty()) {
+            throw new IOException("Received empty response from OpenAI.");
+        }
+        
         try {
             JSONObject persona = new JSONObject(response);
             
@@ -134,9 +141,9 @@ public class PersonaService {
     
     private String generateStereotypicalDescription(String topic) throws IOException {
         String stereotypePrompt = String.format(
-            "For a blog about %s, create a detailed, natural description of the most stereotypical person who could " +
-            "have expertise in this field and start a blog about . Write it as a hyper-realistic image generation prompt.\n\n" +
-            "Focus on these elements, but blend them naturally into a flowing description:\n" +
+            "For a blog about %s, create a natural description of the most stereotypical person who could " +
+            "start a blog about %s. Write it as a hyper-realistic image generation prompt.\n\n" +
+            "Focus on these elements and blend them into a description:\n" +
             "- Physical appearance (age, build, complexion)\n" +
             "- Personal style and clothing\n" +
             "- Distinctive accessories or props\n" +
@@ -144,9 +151,7 @@ public class PersonaService {
             "- Lighting and atmosphere\n" +
             "- Small, realistic details that add authenticity\n\n" +
             "Include specific, tangible details that create a vivid mental image.\n\n" +
-            "Example style: \"Create a hyper-realistic image of a passionate man in his early 40s, with a lean, athletic build and sun-kissed skin " +
-            "that speaks of time spent outdoors. His sporty-casual style is highlighted by a well-fitted polo shirt...\" etc.\n\n" +
-            "Now, create a similar description for a %s expert (make sure under 1024 characters):",
+            "Make sure under 500 characters:",
             topic,
             topic
         );

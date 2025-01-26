@@ -17,6 +17,10 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.io.InputStream;
+import java.io.File;
+import java.nio.file.Files;
 
 import com.zho.model.Image;
 import com.zho.api.UnsplashClient;
@@ -444,6 +448,83 @@ public class WordPressMediaClient extends BaseWordPressClient {
     public void updateSiteTagline(String tagline) throws IOException, ParseException {
         updateSiteSetting("description", tagline);
         System.out.println("Successfully updated site tagline to: " + tagline);
+    }
+
+    public String uploadImageFromUrl(String imageUrl) throws IOException {
+        // Download the image from the URL
+        byte[] imageData = downloadImageFromUrl(imageUrl);
+        
+        // Create a temporary file to hold the image data with a unique name
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        File tempFile = File.createTempFile("uploaded-image-" + timestamp, ".jpg");
+        Files.write(tempFile.toPath(), imageData);
+        
+        // Use the existing upload method to upload the image
+        String mediaUrl = uploadMediaFromFile(tempFile.getAbsolutePath(), "Uploaded from URL");
+        
+        // Optionally, delete the temporary file after upload
+        tempFile.delete();
+        
+        return mediaUrl;
+    }
+
+    private byte[] downloadImageFromUrl(String imageUrl) throws IOException {
+        URL url = new URL(imageUrl);
+        try (InputStream in = url.openStream()) {
+            return in.readAllBytes();
+        }
+    }
+
+    public void updateSiteLogoFromUrl(String imageUrl) throws IOException, ParseException {
+        // Download the image from URL
+        byte[] imageBytes = downloadImage(imageUrl);
+        
+        // Generate unique filename with timestamp
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String filename = "site-logo-" + timestamp + ".png";
+        
+        String url = baseUrl + "media";
+        
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody("file", imageBytes, ContentType.IMAGE_PNG, filename);
+        HttpEntity multipart = builder.build();
+
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        uploadRequest.setEntity(multipart);
+        setAuthHeader(uploadRequest);
+
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject json = new JSONObject(responseBody);
+            int mediaId = json.getInt("id");
+            updateSiteSetting("site_logo", String.valueOf(mediaId));
+        }
+    }
+
+    public void updateFaviconFromUrl(String imageUrl) throws IOException, ParseException {
+        // Download the image from URL
+        byte[] imageBytes = downloadImage(imageUrl);
+        
+        // Generate unique filename with timestamp
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String filename = "favicon-" + timestamp + ".png";
+        
+        String url = baseUrl + "media";
+        
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody("file", imageBytes, ContentType.IMAGE_PNG, filename);
+        HttpEntity multipart = builder.build();
+
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        uploadRequest.setEntity(multipart);
+        setAuthHeader(uploadRequest);
+
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject json = new JSONObject(responseBody);
+            int mediaId = json.getInt("id");
+            updateSiteSetting("site_icon", String.valueOf(mediaId));
+        }
     }
 
     // Test method

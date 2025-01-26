@@ -175,7 +175,7 @@ public class KeywordResearchService {
         String coreThemePrompt = String.format(
             """
             Based on this blog topic '%s' and description '%s',
-            generate a single keyword that represents the core theme of this specific blog.
+            generate a keyword topic phrase that represents the core theme of this blog website.
             
             Return only the keyword itself, no explanation or additional text.
             """,
@@ -272,7 +272,7 @@ public class KeywordResearchService {
         BlogRequest request = new BlogRequest("phase I ESA", "phase I ESA");
         
         try {
-            List<KeywordAnalysis> keywords = service.getLongTailKeywords(request, 10);
+            List<KeywordAnalysis> keywords = service.getLongTailKeywords(request, 1000);
             System.out.println("\nTop Keywords Analysis:");
             System.out.println("Format: Keyword | Monthly Searches | Competition Index | Avg CPC | AI Score");
             System.out.println("--------------------------------------------------------------------------------");

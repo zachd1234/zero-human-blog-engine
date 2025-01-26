@@ -52,7 +52,9 @@ public class AboutPage implements StaticPage {
         //update persona image. 
         mediaClient.UpdateColumnImage(pageId, "318_8978a8-3e", persona.getImageUrl());
         //hardcoded
-        mediaClient.updateInfoboxImage(pageId, "318_1fa743-7a", images.get(0));
+        if (!images.isEmpty()) {
+            mediaClient.updateInfoboxImage(pageId, "318_1fa743-7a", images.get(0));
+        }
 
         // NOTE: If you add another section that needs an image:
         // 1. Update getRequiredImageCount() 

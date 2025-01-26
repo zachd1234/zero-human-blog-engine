@@ -49,8 +49,12 @@ public class HomePage implements StaticPage {
         }
         
         // Update images
-        mediaClient.updateSimpleImage(pageId, images.get(0));
-        mediaClient.updateBackgroundImage(pageId, "609_fc7adf-33", images.get(1));
+        if (!images.isEmpty()) {
+            mediaClient.updateSimpleImage(pageId, images.get(0));
+            if (images.size() > 1) {
+                mediaClient.updateBackgroundImage(pageId, "609_fc7adf-33", images.get(1));
+            }
+        }
         
         // NOTE: If you add another section that needs an image:
         // 1. Update getRequiredImageCount() to return the new total
