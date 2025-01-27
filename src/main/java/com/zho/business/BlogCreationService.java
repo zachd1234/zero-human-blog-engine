@@ -4,7 +4,7 @@ import com.zho.model.BlogRequest;
 import com.zho.config.ConfigManager;
 import com.zho.services.DatabaseService;
 import com.zho.services.BlogSetup.CategoryService;
-import com.zho.services.BlogSetup.LogoAndFaviconService;
+import com.zho.services.BlogSetup.SiteBrandingService;
 import com.zho.services.BlogSetup.PersonaService;
 import com.zho.services.BlogSetup.StaticContent.StaticContentService;
 import com.zho.services.DailyPosts.ContentEngineService;
@@ -22,7 +22,7 @@ public class BlogCreationService {
     
     private final DatabaseService dbService;
     private final CategoryService categoryService;
-    private final LogoAndFaviconService logoService;
+    private final SiteBrandingService logoService;
     private final StaticContentService staticContentService;
     private final PersonaService personaService;
     private final ContentEngineService contentEngineService;
@@ -32,7 +32,7 @@ public class BlogCreationService {
         this.dbService = new DatabaseService();
         this.categoryService = new CategoryService();
         WordPressMediaClient mediaClient = new WordPressMediaClient();
-        this.logoService = new LogoAndFaviconService(mediaClient);
+        this.logoService = new SiteBrandingService(mediaClient);
         this.staticContentService = new StaticContentService();
         this.personaService = new PersonaService();
         this.contentEngineService = new ContentEngineService(); 

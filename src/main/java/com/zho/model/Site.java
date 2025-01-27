@@ -10,24 +10,31 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum Site {
-    MAIN("https://ruckquest.com/wp-json/wp/v2/", 1),
-    TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2);
+
+    //toggle blog status here
+    MAIN("https://ruckquest.com/wp-json/wp/v2/", 1, true),
+    TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2, false);
 
     private static Map<String, Site> sites = new HashMap<>();
     private static Site CURRENT_SITE = DatabaseService.loadCurrentSiteFromDatabase();  // Default to MAIN
 
     private final String url;
     private final int siteId;
+    private boolean isActive;
 
-    Site(String url, int siteId) {
+    Site(String url, int siteId, boolean isActive) {
         this.url = url;
         this.siteId = siteId;
+        this.isActive = isActive;
     }
 
     public String getUrl() {
         return url;
     }
 
+    public boolean isActive() {
+        return isActive;
+    }
 
     public int getSiteId() {
         return siteId;

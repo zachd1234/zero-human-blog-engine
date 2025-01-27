@@ -28,9 +28,6 @@ public class DatabaseService {
             clearTopics();
             clearPersonas();
             
-            if(!isBlogActive()) {
-                toggleBlogStatus();
-            }
 
         } catch (SQLException e) {
             System.err.println("Error clearing database tables: " + e.getMessage());
@@ -466,16 +463,6 @@ public class DatabaseService {
         }
     }
 
-    public boolean isBlogActive() throws SQLException {
-        String sql = "SELECT is_active FROM blog_status WHERE site_id = ? LIMIT 1";
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, currentSiteId);  // Set site_id
-            ResultSet rs = stmt.executeQuery();
-            return rs.next() && rs.getBoolean("is_active");
-        }
-    }
-
     public static Site loadCurrentSiteFromDatabase() {
         String sql = "SELECT site_id FROM current_site LIMIT 1";  // Adjust this query as needed
         try (Connection conn = getConnection();
@@ -491,27 +478,6 @@ public class DatabaseService {
         } catch (SQLException e) {
             System.err.println("Error loading current site from database: " + e.getMessage());
             throw new RuntimeException("Database error while loading current site", e);
-        }
-    }
-
-    
-    public void toggleBlogStatus() throws SQLException {
-        String sql = "UPDATE blog_status SET is_active = NOT is_active WHERE site_id = ?";
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, currentSiteId);  // Set site_id
-            stmt.executeUpdate();  // Use executeUpdate() for UPDATE statements
-            
-            // Get new status with separate query
-            sql = "SELECT is_active FROM blog_status WHERE site_id = ? LIMIT 1";
-            try (PreparedStatement checkStmt = conn.prepareStatement(sql)) {
-                checkStmt.setInt(1, currentSiteId);  // Set site_id
-                ResultSet rs = checkStmt.executeQuery();
-                if (rs.next()) {
-                    boolean newStatus = rs.getBoolean("is_active");
-                    System.out.println("Blog status toggled to: " + newStatus);
-                }
-            }
         }
     }
 
