@@ -49,7 +49,10 @@ public enum Site {
     public static void SwitchSite(Site newSite) {
         CURRENT_SITE = newSite;
         DatabaseService.updateCurrentSiteInDatabase(newSite.getSiteId());
-        updatePropertiesFile();
+        // Only update properties file if not running in Lambda
+        if (System.getenv("AWS_LAMBDA_FUNCTION_NAME") == null) {
+            updatePropertiesFile();
+        }
     }
 
     public static void printAllSites() {
@@ -63,6 +66,11 @@ public enum Site {
     }
 
     public static void updatePropertiesFile() {
+        // Skip if running in Lambda
+        if (System.getenv("AWS_LAMBDA_FUNCTION_NAME") != null) {
+            return;
+        }
+        
         Properties props = new Properties();
         try {
             props.load(Site.class.getResourceAsStream("/application.properties"));
