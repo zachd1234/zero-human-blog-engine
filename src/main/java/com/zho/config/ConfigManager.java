@@ -57,7 +57,7 @@ public class ConfigManager {
         String envVar = System.getenv("WP_TOKEN");
         return envVar != null ? envVar : properties.getProperty("wordpress.token");
     }
-
+    
     // Database
     public static String getDbUrl() {
         String envVar = System.getenv("DB_URL");

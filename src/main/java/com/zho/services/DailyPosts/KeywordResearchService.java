@@ -269,7 +269,7 @@ public class KeywordResearchService {
         KeywordResearchService service = new KeywordResearchService();
         
         // Create a test BlogRequest
-        BlogRequest request = new BlogRequest("phase I ESA", "phase I ESA");
+        BlogRequest request = new BlogRequest("property condition report", "property condition report");
         
         try {
             List<KeywordAnalysis> keywords = service.getLongTailKeywords(request, 1000);

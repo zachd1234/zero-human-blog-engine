@@ -13,7 +13,7 @@ public class ContentGenerationHandler implements RequestHandler<Object, String> 
             // Add a test log message somewhere in your code
             System.out.println("CICD works!");
             
-            Site.SwitchSite(Site.TEST);
+            Site.SwitchSite(Site.MAIN);
 
             try {
                 Thread.sleep(5000);  // Sleep for 5000 milliseconds (5 seconds)

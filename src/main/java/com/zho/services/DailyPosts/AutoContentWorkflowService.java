@@ -1,6 +1,7 @@
 package com.zho.services.DailyPosts;
 
 import com.zho.services.DatabaseService;
+import com.zho.services.BlogSetup.SearchConsoleSetupService;
 import com.zho.api.wordpress.WordPressPostClient;
 import com.zho.api.wordpress.WordPressPostClient.PostResponse;
 import com.zho.model.KeywordAnalysis;
@@ -9,6 +10,7 @@ import com.zho.api.OpenAIClient;
 import com.zho.api.GetImgAIClient;
 import java.io.IOException;
 import com.zho.model.Image;
+import com.zho.api.GoogleSearchConsoleClient;
 import com.zho.api.wordpress.WordPressCategoryClient;
 import com.zho.api.wordpress.WordPressMediaClient;
 
@@ -95,9 +97,19 @@ public class AutoContentWorkflowService {
             System.out.println("Successfully published post for: " + keyword.getKeyword());
             System.out.println("URL: " + postResponse.getUrl());
             
+            //Index the new page. 
+            indexPage(postResponse.getUrl());
+       
+
         } catch (Exception e) {
             System.err.println("Error in content workflow: " + e.getMessage());
         }
+    }
+
+
+    private void indexPage(String url) throws IOException {
+        GoogleSearchConsoleClient googleSearchConsole = new GoogleSearchConsoleClient();
+        googleSearchConsole.submitUrl(url);
     }
 
     private String determineCategory(String title) {
