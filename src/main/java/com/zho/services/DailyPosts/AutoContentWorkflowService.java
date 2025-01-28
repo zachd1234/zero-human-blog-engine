@@ -98,7 +98,7 @@ public class AutoContentWorkflowService {
             System.out.println("URL: " + postResponse.getUrl());
             
             //Index the new page. 
-            indexPage(postResponse.getUrl());
+            //indexPage(postResponse.getUrl()); //Not Ready Yet
        
 
         } catch (Exception e) {
