@@ -485,7 +485,12 @@ public class DatabaseService {
         DatabaseService dbService = new DatabaseService();
             
         // First clear the table
-        System.out.println(dbService.popNextKeyword().getKeyword());
+        try{
+            dbService.clearKeywords();
+        } catch (SQLException e) {
+            System.err.println("Error clearing keywords: " + e.getMessage());
+            throw new RuntimeException("Database error while clearing keywords", e);
+        }
     }
 
     public static void updateCurrentSiteInDatabase(int siteId) {

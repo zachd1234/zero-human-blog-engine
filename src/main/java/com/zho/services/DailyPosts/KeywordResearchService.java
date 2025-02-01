@@ -10,12 +10,15 @@ import com.zho.api.OpenAIClient;
 import com.zho.model.Topic;
 import com.zho.services.DatabaseService;
 import com.zho.model.KeywordAnalysis;
+import com.google.ads.googleads.v18.services.GenerateKeywordIdeaResult;
+import com.google.ads.googleads.v18.common.KeywordPlanHistoricalMetrics;
 
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
-import com.google.ads.googleads.v18.services.GenerateKeywordIdeaResult;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 public class KeywordResearchService {
     private final GoogleAdsClient googleAdsClient;
@@ -133,6 +136,7 @@ public class KeywordResearchService {
             3. Relevance Rating:
                - Rate 0 if ANY of these are true:
                  * Location-specific query (e.g., "near me", "in New York")
+                 * In a different language
                  * Navigational query (user wants to go to specific website, e.g., "chatgpt login", "facebook")
                  * Looking for a specific product to buy
                - Rate 10 if NONE of the above are true
@@ -171,20 +175,7 @@ public class KeywordResearchService {
     private List<String> generateSeedKeywords(BlogRequest blogRequest) throws IOException {
         List<String> seedKeywords = new ArrayList<>();
         
-        // Step 1: Generate core theme keyword
-        String coreThemePrompt = String.format(
-            """
-            Based on this blog topic '%s' and description '%s',
-            generate a keyword topic phrase that represents the core theme of this blog website.
-            
-            Return only the keyword itself, no explanation or additional text.
-            """,
-            blogRequest.getTopic(),
-            blogRequest.getDescription()
-        );
-        
-        String coreKeyword = openAIClient.callGPT4(coreThemePrompt).trim();
-        seedKeywords.add(coreKeyword);
+        seedKeywords.add(blogRequest.getTopic());
         
         // Step 2: Generate pillar topics based on core keyword
         String pillarTopicsPrompt = String.format(
@@ -204,7 +195,7 @@ public class KeywordResearchService {
             Format your response as a simple list of 5 topics, one per line.
             Do not add numbers, bullets, or any other text.
             """,
-            coreKeyword
+            blogRequest.getTopic()
         );
         
         String pillarsResponse = openAIClient.callGPT4(pillarTopicsPrompt);
@@ -216,7 +207,7 @@ public class KeywordResearchService {
         
         // Print seed keywords for testing
         System.out.println("\nGenerated Seed Keywords:");
-        System.out.println("Core theme: " + coreKeyword);
+        System.out.println("Core theme: " + blogRequest.getTopic());
         System.out.println("Pillar topics:");
         seedKeywords.stream()
             .skip(1) // Skip core keyword as we already printed it
@@ -265,29 +256,111 @@ public class KeywordResearchService {
         }
     }
 
+    public List<KeywordAnalysis> analyzeKeywordsFromCsv(String csvFilePath, BlogRequest blogRequest) {
+        List<KeywordAnalysis> analyzedKeywords = new ArrayList<>();
+        
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
+            String line;
+            int count = 0;
+            int totalKeywords = 0;
+            
+            // Count total keywords first
+            while (br.readLine() != null) totalKeywords++;
+            br.close();
+            
+            // Reset reader
+            BufferedReader reader = new BufferedReader(new FileReader(csvFilePath));
+            
+            while ((line = reader.readLine()) != null) {
+                count++;
+                String keyword = line.trim();
+                
+                if (!keyword.isEmpty()) {
+                    System.out.printf("\nAnalyzing keyword %d/%d: %s%n", count, totalKeywords, keyword);
+                    
+                    // Create a mock Google Ads result for the keyword
+                    GenerateKeywordIdeaResult mockResult = GenerateKeywordIdeaResult.newBuilder()
+                        .setText(keyword)
+                        .setKeywordIdeaMetrics(KeywordPlanHistoricalMetrics.newBuilder()
+                            .setAvgMonthlySearches(0L)
+                            .setCompetitionIndex(0)
+                            .setAverageCpcMicros(0L)
+                            .build())
+                        .build();
+                    
+                    KeywordAnalysis analysis = analyzeKeywordWithAI(mockResult, blogRequest.getTopic());
+                    
+                    if (analysis.getScore() >= MINIMUM_SCORE_THRESHOLD) {
+                        analyzedKeywords.add(analysis);
+                        System.out.println("✓ Accepted with score: " + analysis.getScore());
+                    } else {
+                        System.out.println("✗ Rejected (score below threshold)");
+                    }
+                }
+            }
+            
+            // Batch save all accepted keywords at once
+            if (!analyzedKeywords.isEmpty()) {
+                System.out.println("\nSaving " + analyzedKeywords.size() + " keywords to database...");
+                databaseService.saveKeywords(analyzedKeywords);
+                System.out.println("Database update complete!");
+            }
+            
+            System.out.println("\nAnalysis Complete!");
+            System.out.println("Total keywords processed: " + count);
+            System.out.println("Keywords that passed AI analysis: " + analyzedKeywords.size());
+            
+        } catch (Exception e) {
+            System.err.println("Error processing CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return analyzedKeywords;
+    }
+
     public static void main(String[] args) {
         KeywordResearchService service = new KeywordResearchService();
         
         // Create a test BlogRequest
-        BlogRequest request = new BlogRequest("property condition report", "property condition report");
+        BlogRequest request = new BlogRequest("rucking", "All things rucking. Guides, gear reviews, training plans, and expert tips to help you succeed with rucking");
         
         try {
-            List<KeywordAnalysis> keywords = service.getLongTailKeywords(request, 1000);
+            //List<KeywordAnalysis> keywords = service.getLongTailKeywords(request, 1000);
+            List<KeywordAnalysis> keywords = service.analyzeKeywordsFromCsv("/Users/zachderhake/Downloads/rucking_keyword_data.csv", request);
+
             System.out.println("\nTop Keywords Analysis:");
             System.out.println("Format: Keyword | Monthly Searches | Competition Index | Avg CPC | AI Score");
             System.out.println("--------------------------------------------------------------------------------");
             
-            keywords.forEach(k -> System.out.printf("%-30s | %14d | %16d | $%6.2f | %.1f\n",
-                k.getKeyword(),
-                k.getMonthlySearches(),
-                k.getCompetitionIndex(),
-                k.getAverageCpc(),
-                k.getScore()
-            ));
+            //keywords.forEach(k -> System.out.printf("%-30s | %14d | %16d | $%6.2f | %.1f\n",
+             //   k.getKeyword(),
+             //   k.getMonthlySearches(),
+             //   k.getCompetitionIndex(),
+            //   k.getAverageCpc(),
+            //   k.getScore()
+            //));
             
         } catch (Exception e) {
             System.err.println("Error in main: " + e.getMessage());
             e.printStackTrace();
         }
+
+        // Test CSV analysis
+        BlogRequest csvRequest = new BlogRequest(
+            "rucking",
+            "All things rucking. Guides, gear reviews, training plans, and expert tips."
+        );
+        
+        String csvPath = "path/to/your/keywords.csv";  // Update with actual path
+        List<KeywordAnalysis> csvResults = service.analyzeKeywordsFromCsv(csvPath, csvRequest);
+        
+        // Print results
+        System.out.println("\nTop Keywords Analysis:");
+        System.out.println("Format: Keyword | AI Score");
+        System.out.println("--------------------------------");
+        csvResults.forEach(k -> System.out.printf("%-30s | %.1f%n",
+            k.getKeyword(),
+            k.getScore()
+        ));
     }
 }
