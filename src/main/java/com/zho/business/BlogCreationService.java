@@ -3,6 +3,7 @@ package com.zho.business;
 import com.zho.model.BlogRequest;
 import com.zho.config.ConfigManager;
 import com.zho.services.DatabaseService;
+import com.zho.services.BlogSetup.BlogLayoutService;
 import com.zho.services.BlogSetup.CategoryService;
 import com.zho.services.BlogSetup.SiteBrandingService;
 import com.zho.services.BlogSetup.PersonaService;
@@ -14,6 +15,7 @@ import com.zho.api.UnsplashClient;
 import java.io.IOException;
 import org.apache.hc.core5.http.ParseException;
 import java.sql.SQLException;
+import com.zho.services.BlogSetup.BlogLayoutService;
 
 public class BlogCreationService {
     // Configuration constants
@@ -27,6 +29,7 @@ public class BlogCreationService {
     private final PersonaService personaService;
     private final ContentEngineService contentEngineService;
     private final GarbageCollectionService garbageCollectionService;
+    private final BlogLayoutService blogLayoutService;
     
     public BlogCreationService() {
         this.dbService = new DatabaseService();
@@ -37,6 +40,7 @@ public class BlogCreationService {
         this.personaService = new PersonaService();
         this.contentEngineService = new ContentEngineService(); 
         this.garbageCollectionService = new GarbageCollectionService();
+        this.blogLayoutService = new BlogLayoutService();
     }
     
     public void AutoBlogEngine(BlogRequest request) throws Exception {
@@ -55,6 +59,7 @@ public class BlogCreationService {
         personaService.generateAndSetupPersona(request.getTopic());
         categoryService.setupSubtopics(request);
         garbageCollectionService.deleteAllPosts();
+        blogLayoutService.updateCommitmentAccordion(request);
     }
     
     private void populateSite(BlogRequest request) throws IOException, ParseException {

@@ -398,7 +398,13 @@ public class WordPressMediaClient extends BaseWordPressClient {
     }
 
     public String uploadMediaFromFile(String localFilePath, String title) throws IOException {
+        // Debug prints at start
+        System.out.println("DEBUG: Starting media upload");
+        System.out.println("DEBUG: Current site URL: " + baseUrl);
+        System.out.println("DEBUG: File path: " + localFilePath);
+        
         String url = baseUrl + "media";
+        System.out.println("DEBUG: Full upload URL: " + url);
         
         // Create multipart request
         HttpPost uploadRequest = new HttpPost(URI.create(url));
@@ -407,6 +413,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
         // Read the file into a byte array
         File file = new File(localFilePath);
         byte[] fileBytes = Files.readAllBytes(file.toPath());
+        System.out.println("DEBUG: File size: " + fileBytes.length + " bytes");
         
         // Create multipart entity
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -420,22 +427,26 @@ public class WordPressMediaClient extends BaseWordPressClient {
         // Add title if provided
         if (title != null && !title.isEmpty()) {
             builder.addTextBody("title", title);
+            System.out.println("DEBUG: Added title: " + title);
         }
         
         HttpEntity multipart = builder.build();
         uploadRequest.setEntity(multipart);
         
         try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            System.out.println("DEBUG: Response status code: " + response.getCode());
             String responseBody = EntityUtils.toString(response.getEntity());
-            JSONObject mediaResponse = new JSONObject(responseBody);
+            System.out.println("DEBUG: Raw response: " + responseBody);
             
-            // Get the URL directly as a string
+            JSONObject mediaResponse = new JSONObject(responseBody);
             String mediaUrl = mediaResponse.getString("source_url");
             System.out.println("Media uploaded successfully. URL: " + mediaUrl);
             
             return mediaUrl;
         } catch (Exception e) {
             System.err.println("Error uploading media: " + e.getMessage());
+            System.err.println("DEBUG: Full error:");
+            e.printStackTrace();
             throw new IOException("Failed to upload media", e);
         }
     }

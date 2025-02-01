@@ -463,7 +463,7 @@ public class DatabaseService {
         }
     }
 
-    public static Site loadCurrentSiteFromDatabase() {
+    public static int loadCurrentSiteFromDatabase() {
         String sql = "SELECT site_id FROM current_site LIMIT 1";  // Adjust this query as needed
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -471,7 +471,7 @@ public class DatabaseService {
             
             if (rs.next()) {
                 int siteId = rs.getInt("site_id");
-                return (siteId == 1) ? Site.MAIN : Site.TEST;  // Return the corresponding Site object
+                return siteId; 
             } else {
                 throw new RuntimeException("No current site found in database");
             }

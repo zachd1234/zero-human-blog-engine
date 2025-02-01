@@ -15,6 +15,8 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.HttpRequest;
 import com.zho.model.Topic;
 import java.util.List;
+import org.json.JSONArray;
+import java.net.URLEncoder;
 
 public class WordPressBlockClient extends BaseWordPressClient {
     public enum BlockType {
@@ -471,6 +473,92 @@ public class WordPressBlockClient extends BaseWordPressClient {
         String updatedContent = currentContent.replaceFirst(blockPattern, newBlock);
         
         updatePageContent(pageId, updatedContent);
+    }
+
+    public void updateAccordionFAQ(int faqId, String content) throws IOException {
+        String url = baseUrl + "sp_accordion_faqs/" + faqId;
+        System.out.println("DEBUG: Attempting to update FAQ at URL: " + url);
+        
+        // First verify the FAQ exists
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        try (CloseableHttpResponse getResponse = httpClient.execute(getRequest)) {
+            if (getResponse.getCode() == 404) {
+                throw new IOException("FAQ with ID " + faqId + " not found. Please verify the ID is correct.");
+            }
+        }
+        
+        // Continue with update if FAQ exists
+        JSONObject updatePayload = new JSONObject()
+            .put("content", new JSONObject()
+                .put("raw", content));
+        
+        HttpPost updateRequest = new HttpPost(URI.create(url));
+        setAuthHeader(updateRequest);
+        updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+        updateRequest.setHeader("Content-Type", "application/json");
+
+        try (CloseableHttpResponse response = httpClient.execute(updateRequest)) {
+            int statusCode = response.getCode();
+            if (statusCode == 200) {
+                System.out.println("Successfully updated FAQ accordion");
+            } else {
+                throw new IOException("Failed to update FAQ accordion. Status code: " + statusCode);
+            }
+        }
+    }
+    
+    public Integer getFirstAccordionFAQId() throws IOException, ParseException {
+        String url = baseUrl + "sp_accordion_faqs";
+        
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONArray faqs = new JSONArray(responseBody);
+            
+            if (faqs.length() > 0) {
+                return faqs.getJSONObject(0).getInt("id");
+            }
+            
+            throw new IOException("No FAQ found");
+        }
+    }
+
+    public JSONObject getPageByUrl(String pageUrl) throws IOException, ParseException {
+        // Remove domain from URL if present
+        String slug = pageUrl.replaceFirst("https?://[^/]+/", "")
+                            .replaceAll("/$", ""); // Remove trailing slash
+        
+        String url = baseUrl + "pages?slug=" + URLEncoder.encode(slug, StandardCharsets.UTF_8);
+        
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONArray pages = new JSONArray(responseBody);
+            
+            if (pages.length() > 0) {
+                return pages.getJSONObject(0);
+            }
+            
+            throw new IOException("Page not found: " + pageUrl);
+        }
+    }
+
+    public String getSiteTitle() throws IOException, ParseException {
+        String url = baseUrl.replaceFirst("wp/v2/", ""); // Remove wp/v2/ to access root endpoint
+        
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject siteInfo = new JSONObject(responseBody);
+            return siteInfo.getString("name");
+        }
     }
 
     public static void main(String[] args) {

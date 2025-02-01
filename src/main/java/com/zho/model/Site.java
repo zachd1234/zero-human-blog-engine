@@ -8,15 +8,29 @@ import com.zho.services.DatabaseService;
 import java.util.Properties;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Arrays;
 
 public enum Site {
 
     //toggle blog status here
     MAIN("https://ruckquest.com/wp-json/wp/v2/", 1, true),
-    TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2, false);
+    TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2, false),
+    SITE3("https://mbt.dsc.mybluehost.me/website_ef63468e/wp-json/wp/v2/", 3, false);
+    //Site 3 (Url, 3, false)
 
-    private static Map<String, Site> sites = new HashMap<>();
-    private static Site CURRENT_SITE = DatabaseService.loadCurrentSiteFromDatabase();  // Default to MAIN
+    private static final Map<String, Site> sitesByName = new HashMap<>();
+    private static final Map<Integer, Site> sitesById = new HashMap<>();
+    private static Site CURRENT_SITE;
+
+    static {
+        // Initialize the lookup maps
+        for (Site site : Site.values()) {
+            sitesByName.put(site.name(), site);
+            sitesById.put(site.getSiteId(), site);
+        }
+        // Initialize CURRENT_SITE
+        CURRENT_SITE = getCurrentSite();
+    }
 
     private final String url;
     private final int siteId;
@@ -42,8 +56,18 @@ public enum Site {
 
     public static Site getCurrentSite() {
         //refresh
-        CURRENT_SITE = DatabaseService.loadCurrentSiteFromDatabase();
-        return CURRENT_SITE;
+        int siteId = DatabaseService.loadCurrentSiteFromDatabase();
+        return getSitebyId(siteId);
+    }
+
+    public static Site getSitebyId(int siteid) {
+        Site site = sitesById.get(siteid);
+        return site != null ? site : null; 
+    }
+
+    public static Site getSiteByName(String name) {
+        Site site = sitesByName.get(name);
+        return site != null ? site : null;
     }
 
     public static void SwitchSite(Site newSite) {
@@ -82,7 +106,7 @@ public enum Site {
     }
 
     public static List<Site> getAllSites() {
-        return new ArrayList<>(sites.values());  // Get all sites from the map
+        return new ArrayList<>(sitesByName.values());  // Get all sites from the map
     }
 
     public static void main(String[] args) {
