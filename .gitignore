@@ -16,3 +16,4 @@ logback.xml
 *.history
 layer/
 !.mvn/wrapper/maven-wrapper.jar
+src/test/java/com/zho/AppTest.java
