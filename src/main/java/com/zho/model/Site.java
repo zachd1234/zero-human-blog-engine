@@ -12,7 +12,7 @@ import java.util.Arrays;
 
 public enum Site {
 
-    //toggle blog status here
+    //toggle blog status here. //MAKE SURE TO ADD a row to BLOG_STATUS. 
     MAIN("https://ruckquest.com/wp-json/wp/v2/", 1, true),
     TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2, false),
     SITE3("https://mbt.dsc.mybluehost.me/website_ef63468e/wp-json/wp/v2/", 3, false);

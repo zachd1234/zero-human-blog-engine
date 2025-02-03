@@ -55,17 +55,16 @@ public class BlogCreationService {
     }
     
     private void setupInitialConfig(BlogRequest request) throws IOException, ParseException, SQLException {
-        dbService.initializeDatabase();
+        dbService.initializeDatabase(request);
         personaService.generateAndSetupPersona(request.getTopic());
         categoryService.setupSubtopics(request);
         garbageCollectionService.deleteAllPosts();
-        blogLayoutService.updateCommitmentAccordion(request);
     }
     
     private void populateSite(BlogRequest request) throws IOException, ParseException {
         // Generate and upload visual assets
         logoService.generateAndUploadBranding(request);
-        
+        blogLayoutService.updateCommitmentAccordion(request);
         staticContentService.populateStaticPages(request);
     }
 } 

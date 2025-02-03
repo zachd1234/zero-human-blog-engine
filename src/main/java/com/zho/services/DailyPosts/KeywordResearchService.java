@@ -259,26 +259,33 @@ public class KeywordResearchService {
     public List<KeywordAnalysis> analyzeKeywordsFromCsv(String csvFilePath, BlogRequest blogRequest) {
         List<KeywordAnalysis> analyzedKeywords = new ArrayList<>();
         
-        try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
-            String line;
-            int count = 0;
-            int totalKeywords = 0;
+        try {
+            System.out.println("\n📂 Reading keywords from CSV: " + csvFilePath);
             
-            // Count total keywords first
-            while (br.readLine() != null) totalKeywords++;
-            br.close();
+            // Read keywords from CSV
+            List<String> rawKeywords = new ArrayList<>();
+            try (BufferedReader br = new BufferedReader(new FileReader(csvFilePath))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (!line.trim().isEmpty()) {
+                        rawKeywords.add(line.trim());
+                    }
+                }
+            }
+            System.out.println("📊 Found " + rawKeywords.size() + " raw keywords in CSV");
             
-            // Reset reader
-            BufferedReader reader = new BufferedReader(new FileReader(csvFilePath));
+            // Refine the keyword list
+            System.out.println("\n🔄 Starting keyword refinement process...");
+            List<String> refinedKeywords = keywordListRefinement(rawKeywords, blogRequest);
+            System.out.println("\n✨ Processing " + refinedKeywords.size() + " refined keywords...");
             
-            while ((line = reader.readLine()) != null) {
-                count++;
-                String keyword = line.trim();
-                
+            // Create KeywordAnalysis objects
+            System.out.println("\n📝 Creating keyword analysis objects...");
+            for (int i = 0; i < refinedKeywords.size(); i++) {
+                String keyword = refinedKeywords.get(i).trim();
                 if (!keyword.isEmpty()) {
-                    System.out.printf("\nAnalyzing keyword %d/%d: %s%n", count, totalKeywords, keyword);
+                    System.out.printf("Processing keyword %d/%d: %s%n", i + 1, refinedKeywords.size(), keyword);
                     
-                    // Create a mock Google Ads result for the keyword
                     GenerateKeywordIdeaResult mockResult = GenerateKeywordIdeaResult.newBuilder()
                         .setText(keyword)
                         .setKeywordIdeaMetrics(KeywordPlanHistoricalMetrics.newBuilder()
@@ -288,79 +295,148 @@ public class KeywordResearchService {
                             .build())
                         .build();
                     
-                    KeywordAnalysis analysis = analyzeKeywordWithAI(mockResult, blogRequest.getTopic());
+                    KeywordAnalysis analysis = new KeywordAnalysis(
+                        keyword,
+                        0L,
+                        0,
+                        0.0,
+                        9.0,
+                        "Pre-filtered and ranked keyword",
+                        refinedKeywords.size() - i
+                    );
                     
-                    if (analysis.getScore() >= MINIMUM_SCORE_THRESHOLD) {
-                        analyzedKeywords.add(analysis);
-                        System.out.println("✓ Accepted with score: " + analysis.getScore());
-                    } else {
-                        System.out.println("✗ Rejected (score below threshold)");
-                    }
+                    analyzedKeywords.add(analysis);
                 }
             }
             
-            // Batch save all accepted keywords at once
+            // Batch save to database
             if (!analyzedKeywords.isEmpty()) {
-                System.out.println("\nSaving " + analyzedKeywords.size() + " keywords to database...");
+                System.out.println("\n💾 Saving " + analyzedKeywords.size() + " keywords to database...");
                 databaseService.saveKeywords(analyzedKeywords);
-                System.out.println("Database update complete!");
+                System.out.println("✅ Database update complete!");
             }
             
-            System.out.println("\nAnalysis Complete!");
-            System.out.println("Total keywords processed: " + count);
-            System.out.println("Keywords that passed AI analysis: " + analyzedKeywords.size());
+            System.out.println("\n🎉 Analysis Complete!");
+            System.out.println("Final keyword count: " + analyzedKeywords.size());
             
         } catch (Exception e) {
-            System.err.println("Error processing CSV: " + e.getMessage());
+            System.err.println("\n❌ Error processing CSV: " + e.getMessage());
             e.printStackTrace();
         }
         
         return analyzedKeywords;
     }
 
+    private List<String> keywordListRefinement(List<String> rawKeywords, BlogRequest blogRequest) {
+        int maxRetries = 3;
+        int currentTry = 0;
+        
+        while (currentTry < maxRetries) {
+            try {
+                System.out.println("\n🔍 Starting Keyword Refinement Process");
+                System.out.println("Initial keyword count: " + rawKeywords.size());
+                
+                // Step 1: Filter out excluded keywords
+                System.out.println("\n📋 STEP 1: Filtering excluded keywords...");
+                String filterPrompt = String.format(
+                    "Analyze the following list of keywords and return ONLY the ones that should be KEPT, removing any that meet the following exclusion criteria:\n\n" +
+                    "1️⃣ Location-Specific Queries → Keywords that contain a city, state, country, or phrases like \"near me\"\n" +
+                    "2️⃣ Non-English Keywords → Any keyword not in English or containing foreign language words\n" +
+                    "3️⃣ Navigational Queries → Keywords where the user is trying to access a specific website or brand\n" +
+                    "4️⃣ Off-Topic Queries → Keywords that are off topic from the niche of %s\n\n" +
+                    "Keywords:\n%s",
+                    blogRequest.getTopic(),
+                    String.join("\n", rawKeywords)
+                );
+                
+                String filteredKeywords = openAIClient.callO3(filterPrompt);
+                List<String> filteredList = Arrays.asList(filteredKeywords.split("\n"));
+                System.out.println("✅ Filtering complete");
+                System.out.println("Keywords removed: " + (rawKeywords.size() - filteredList.size()));
+                System.out.println("Keywords remaining: " + filteredList.size());
+                
+                // Step 2: Remove duplicates
+                System.out.println("\n📋 STEP 2: Removing duplicate keywords...");
+                String dedupePrompt = String.format(
+                    "Take this list of keywords and remove any that are duplicates OR semantically identical.\n" +
+                    "• Consider keywords identical if they have the same meaning even if phrased differently.\n" +
+                    "• Keep only the most natural and commonly used phrasing while removing redundant versions.\n" +
+                    "• Do not remove keywords that are slightly different in intent.\n" +
+                    "• Return the cleaned list of unique, high-value keywords.\n" +
+                    "• Each keyword should be on its own line (no bullets, no extra formatting).\n\n" +
+                    "Keywords:\n%s",
+                    String.join("\n", filteredList)
+                );
+                
+                String uniqueKeywords = openAIClient.callO3(dedupePrompt);
+                List<String> uniqueList = Arrays.asList(uniqueKeywords.split("\n"));
+                System.out.println("✅ Deduplication complete");
+                System.out.println("Duplicates removed: " + (filteredList.size() - uniqueList.size()));
+                System.out.println("Keywords remaining: " + uniqueList.size());
+                
+                // Step 3: Rank keywords
+                System.out.println("\n📋 STEP 3: Ranking keywords...");
+                String rankPrompt = String.format(
+                    "Given the following list of keywords, assign a ranking score (0-100) to each based on:\n" +
+                    "• Expected competition (lower competition = higher score)\n" +
+                    "• How well we can create a high-quality blog post that matches search intent (better fit = higher score)\n\n" +
+                    "Return a single list of keywords, ordered from highest to lowest score.\n" +
+                    "Do not include scores or justifications—only the sorted keywords.\n\n" +
+                    "Keywords:\n%s",
+                    String.join("\n", uniqueList)
+                );
+                
+                String rankedKeywords = openAIClient.callO3(rankPrompt);
+                List<String> rankedList = Arrays.asList(rankedKeywords.split("\n"));
+                System.out.println("✅ Ranking complete");
+                System.out.println("Final keyword count: " + rankedList.size());
+                
+                return rankedList;
+                
+            } catch (Exception e) {
+                currentTry++;
+                if (currentTry >= maxRetries) {
+                    System.err.println("❌ Error in keyword refinement after " + maxRetries + " retries: " + e.getMessage());
+                    e.printStackTrace();
+                } else {
+                    System.out.println("\n⚠️ Timeout occurred, retrying... (Attempt " + (currentTry + 1) + " of " + maxRetries + ")");
+                    try {
+                        Thread.sleep(2000 * currentTry); // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+        return new ArrayList<>();
+    }
+
     public static void main(String[] args) {
         KeywordResearchService service = new KeywordResearchService();
         
         // Create a test BlogRequest
-        BlogRequest request = new BlogRequest("rucking", "All things rucking. Guides, gear reviews, training plans, and expert tips to help you succeed with rucking");
+        BlogRequest request = new BlogRequest("phase i esa", "phase i esa");
         
         try {
-            //List<KeywordAnalysis> keywords = service.getLongTailKeywords(request, 1000);
-            List<KeywordAnalysis> keywords = service.analyzeKeywordsFromCsv("/Users/zachderhake/Downloads/rucking_keyword_data.csv", request);
+            // Use the actual path to your CSV file
+            List<KeywordAnalysis> keywords = service.analyzeKeywordsFromCsv("/Users/zachderhake/Downloads/phaseIESA.csv", request);
 
             System.out.println("\nTop Keywords Analysis:");
             System.out.println("Format: Keyword | Monthly Searches | Competition Index | Avg CPC | AI Score");
             System.out.println("--------------------------------------------------------------------------------");
             
-            //keywords.forEach(k -> System.out.printf("%-30s | %14d | %16d | $%6.2f | %.1f\n",
-             //   k.getKeyword(),
-             //   k.getMonthlySearches(),
-             //   k.getCompetitionIndex(),
-            //   k.getAverageCpc(),
-            //   k.getScore()
-            //));
+            keywords.forEach(k -> System.out.printf("%-30s | %14d | %16d | $%6.2f | %.1f\n",
+                k.getKeyword(),
+                k.getMonthlySearches(),
+                k.getCompetitionIndex(),
+                k.getAverageCpc(),
+                k.getScore()
+            ));
             
         } catch (Exception e) {
             System.err.println("Error in main: " + e.getMessage());
             e.printStackTrace();
         }
-
-        // Test CSV analysis
-        BlogRequest csvRequest = new BlogRequest(
-            "rucking",
-            "All things rucking. Guides, gear reviews, training plans, and expert tips."
-        );
-        
-        String csvPath = "path/to/your/keywords.csv";  // Update with actual path
-        List<KeywordAnalysis> csvResults = service.analyzeKeywordsFromCsv(csvPath, csvRequest);
-        
-        // Print results
-        System.out.println("\nTop Keywords Analysis:");
-        System.out.println("Format: Keyword | AI Score");
-        System.out.println("--------------------------------");
-        csvResults.forEach(k -> System.out.printf("%-30s | %.1f%n",
-            k.getKeyword(),
-            k.getScore()
-        ));
     }
 }

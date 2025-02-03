@@ -13,6 +13,7 @@ import org.apache.hc.core5.http.ParseException;
 import com.zho.api.wordpress.WordPressMediaClient;
 import com.zho.services.DatabaseService;
 import com.zho.services.BlogSetup.StaticContent.pages.AboutPage;
+import com.zho.services.BlogSetup.StaticContent.pages.EditorialPage;
 import com.zho.services.BlogSetup.StaticContent.pages.HomePage;
 import com.zho.services.BlogSetup.StaticContent.pages.StaticPage;
 import java.util.stream.Collectors;
@@ -35,8 +36,8 @@ public class StaticContentService {
         // Initialize pages
         this.pages = Arrays.asList(
             new HomePage(blockClient, openAIClient, mediaClient, databaseService),
-            new AboutPage(blockClient, openAIClient, mediaClient, databaseService)
-        );
+            new AboutPage(blockClient, openAIClient, mediaClient, databaseService),
+            new EditorialPage(blockClient));
     }
 
     public void populateStaticPages(BlogRequest request) throws IOException, ParseException {

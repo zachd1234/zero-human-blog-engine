@@ -5,6 +5,7 @@ import com.zho.services.BlogSetup.SearchConsoleSetupService;
 import com.zho.api.wordpress.WordPressPostClient;
 import com.zho.api.wordpress.WordPressPostClient.PostResponse;
 import com.zho.model.KeywordAnalysis;
+import com.zho.model.Site;
 import com.zho.model.BlogPost;
 import com.zho.api.OpenAIClient;
 import com.zho.api.GetImgAIClient;
@@ -13,6 +14,9 @@ import com.zho.model.Image;
 import com.zho.api.GoogleSearchConsoleClient;
 import com.zho.api.wordpress.WordPressCategoryClient;
 import com.zho.api.wordpress.WordPressMediaClient;
+import com.zho.api.KoalaWriterClient;
+import com.zho.model.BlogRequest;
+import org.json.JSONObject;
 
 import java.util.List;
 
@@ -48,17 +52,26 @@ public class AutoContentWorkflowService {
             
             // 2. Try to generate content with one retry
             String content = null;
-            try {
-                content = postWriterService.createNewBlogPost(keyword.getKeyword());
-            } catch (IOException e) {
-                System.out.println("First attempt failed, waiting 5 minutes before retry...");
+            BlogRequest blogInfo = databaseService.getBlogInfo();
+            Site site = Site.getCurrentSite();
+            
+            // Choose content generation method based on blog settings
+            if (site.isActive()) {
+                System.out.println("Using Koala Writer");
+                content = generateDynamicKoalaContent(keyword.getKeyword(), Long.valueOf(keyword.getId()), blogInfo.getTopic());
+            } else {
                 try {
-                    Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
                     content = postWriterService.createNewBlogPost(keyword.getKeyword());
-                } catch (IOException | InterruptedException retryException) {
-                    System.err.println("Content generation failed after retry. Skipping this keyword.");
-                    databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "FAILED");
-                    return;
+                } catch (IOException e) {
+                    System.out.println("First attempt failed, waiting 5 minutes before retry...");
+                    try {
+                        Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
+                        content = postWriterService.createNewBlogPost(keyword.getKeyword());
+                    } catch (IOException | InterruptedException retryException) {
+                        System.err.println("Content generation failed after retry. Skipping this keyword.");
+                        databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "FAILED");
+                        return;
+                    }
                 }
             }
 
@@ -97,10 +110,6 @@ public class AutoContentWorkflowService {
             System.out.println("Successfully published post for: " + keyword.getKeyword());
             System.out.println("URL: " + postResponse.getUrl());
             
-            //Index the new page. 
-            //indexPage(postResponse.getUrl()); //Not Ready Yet
-       
-
         } catch (Exception e) {
             System.err.println("Error in content workflow: " + e.getMessage());
         }
@@ -206,5 +215,201 @@ public class AutoContentWorkflowService {
             
         System.out.println("Generated slug: " + slug);
         return slug;
+    }
+
+    private String generateContentWithRetry(String keyword, Long keywordId) {
+        System.out.println("\n🤖 Attempting to generate content with ChatGPT...");
+        System.out.println("Keyword: " + keyword);
+        
+        try {
+            String content = postWriterService.createNewBlogPost(keyword);
+            System.out.println("✅ Content generated successfully on first attempt");
+            return content;
+        } catch (IOException e) {
+            System.out.println("\n⚠️ First attempt failed, waiting 5 minutes before retry...");
+            System.out.println("Error: " + e.getMessage());
+            
+            try {
+                Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
+                String content = postWriterService.createNewBlogPost(keyword);
+                System.out.println("✅ Content generated successfully on second attempt");
+                return content;
+            } catch (IOException | InterruptedException retryException) {
+                System.err.println("❌ Content generation failed after retry. Skipping this keyword.");
+                System.err.println("Error: " + retryException.getMessage());
+                databaseService.updateKeywordStatus(keywordId, "FAILED");
+                return null;
+            }
+        }
+    }
+
+    
+
+    private String generateDynamicKoalaContent(String keyword, Long keywordId, String blogTopic) {
+        System.out.println("\n🐨 Starting advanced content workflow...");
+        System.out.println("Keyword: " + keyword);
+        
+        try {
+            // 1. Get SERP data
+            KoalaWriterClient koalaClient = new KoalaWriterClient();
+            String serpResults = koalaClient.getSerpResults(keyword);
+            
+            // 2. Analyze content type with OpenAI
+            String contentTypePrompt = String.format(
+                "Based on these search results, determine the best content type for a new article. " +
+                "Consider user intent and existing content:\n\n%s\n\n" +
+                "Choose ONE type from: 'blog_post' (default), 'listicle', or 'amazon_product_roundup'. " +
+                "Reply with ONLY the content type, nothing else. " +
+                "Choose 'listicle' if the topic suits a numbered list format. " +
+                "Choose 'amazon_product_roundup' only if it's clearly about product comparisons or reviews.",
+                serpResults
+            );
+            
+            String contentType = openAIClient.callOpenAI(contentTypePrompt).trim().toLowerCase();
+            System.out.println("📊 Determined content type: " + contentType);
+            
+            // 3. Generate content based on type
+            JSONObject articleResponse;
+            try {
+                switch (contentType) {
+                    case "listicle":
+                        System.out.println("📝 Creating listicle format article...");
+                        articleResponse = koalaClient.createListicle(keyword);
+                        break;
+                    case "amazon_product_roundup":
+                        System.out.println("🛍️ Creating product roundup article...");
+                        articleResponse = koalaClient.createAmazonRoundup(keyword);
+                        break;
+                    default:
+                        System.out.println("📄 Creating standard blog post...");
+                        articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+                        break;
+                }
+                
+                // Extract and format content
+                String content = articleResponse.getJSONObject("output").getString("html");
+                if (content.contains("<h1>") && content.contains("</h1>")) {
+                    content = content.substring(content.indexOf("</h1>") + 5).trim();
+                }
+                
+                System.out.println("✅ Content generated successfully on first attempt");
+                return content;
+                
+            } catch (Exception e) {
+                System.out.println("\n⚠️ First attempt failed, waiting 5 minutes before retry...");
+                System.out.println("Error: " + e.getMessage());
+                
+                // Retry logic
+                try {
+                    Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
+                    
+                    // Retry with the same content type
+                    switch (contentType) {
+                        case "listicle":
+                            articleResponse = koalaClient.createListicle(keyword);
+                            break;
+                        case "amazon_product_roundup":
+                            articleResponse = koalaClient.createAmazonRoundup(keyword);
+                            break;
+                        default:
+                            articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+                            break;
+                    }
+                    
+                    String content = articleResponse.getJSONObject("output").getString("html");
+                    if (content.contains("<h1>") && content.contains("</h1>")) {
+                        content = content.substring(content.indexOf("</h1>") + 5).trim();
+                    }
+                    
+                    System.out.println("✅ Content generated successfully on second attempt");
+                    return content;
+                    
+                } catch (Exception retryException) {
+                    System.err.println("❌ Content generation failed after retry. Skipping this keyword.");
+                    System.err.println("Error: " + retryException.getMessage());
+                    databaseService.updateKeywordStatus(keywordId, "FAILED");
+                    return null;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error in content workflow: " + e.getMessage());
+            databaseService.updateKeywordStatus(keywordId, "FAILED");
+            return null;
+        }
+    }
+
+    private String generateKoalaContentWithRetry(String keyword, Long keywordId, String blogTopic) {
+        System.out.println("\n🐨 Starting content workflow...");
+        System.out.println("Keyword: " + keyword);
+        
+        try {
+            KoalaWriterClient koalaClient = new KoalaWriterClient();
+            JSONObject articleResponse;
+            
+            try {
+                System.out.println("📄 Creating standard blog post...");
+                articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+                
+                // Extract and format content
+                String content = articleResponse.getJSONObject("output").getString("html");
+                if (content.contains("<h1>") && content.contains("</h1>")) {
+                    content = content.substring(content.indexOf("</h1>") + 5).trim();
+                }
+                
+                System.out.println("✅ Content generated successfully on first attempt");
+                return content;
+                
+            } catch (Exception e) {
+                System.out.println("\n⚠️ First attempt failed, waiting 5 minutes before retry...");
+                System.out.println("Error: " + e.getMessage());
+                
+                // Retry logic
+                try {
+                    Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
+                    
+                    articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+                    
+                    String content = articleResponse.getJSONObject("output").getString("html");
+                    if (content.contains("<h1>") && content.contains("</h1>")) {
+                        content = content.substring(content.indexOf("</h1>") + 5).trim();
+                    }
+                    
+                    System.out.println("✅ Content generated successfully on second attempt");
+                    return content;
+                    
+                } catch (Exception retryException) {
+                    System.err.println("❌ Content generation failed after retry. Skipping this keyword.");
+                    System.err.println("Error: " + retryException.getMessage());
+                    databaseService.updateKeywordStatus(keywordId, "FAILED");
+                    return null;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error in content workflow: " + e.getMessage());
+            databaseService.updateKeywordStatus(keywordId, "FAILED");
+            return null;
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            System.out.println("\n🚀 Testing AutoContentWorkflowService...");
+            
+            AutoContentWorkflowService service = new AutoContentWorkflowService();
+            
+            // Get blog info for context
+            BlogRequest blogInfo = service.databaseService.getBlogInfo();
+            System.out.println("\n📚 Blog Info:");
+            System.out.println("Topic: " + blogInfo.getTopic());
+            System.out.println("Description: " + blogInfo.getDescription());
+            
+            // Process one keyword
+            System.out.println("\n🎯 Processing next keyword...");
+            service.processNextKeyword();
+            
+        } catch (Exception e) {
+            System.err.println("\n❌ Error during testing: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 } 

@@ -171,6 +171,17 @@ public class ConfigManager {
         return envVar != null ? envVar : properties.getProperty("recraft.api.key");
     }
 
+    // Koala Writer
+    public static String getKoalaWriterKey() {
+        String envVar = System.getenv("KOALA_WRITER_API_KEY");
+        return envVar != null ? envVar : properties.getProperty("koala.writer.api.key");
+    }
+    
+    public static String getKoalaWriterUrl() {
+        String envVar = System.getenv("KOALA_WRITER_API_URL");
+        return envVar != null ? envVar : properties.getProperty("koala.writer.api.url");
+    }
+
     // Add more getters as needed
 
     // Add this main method to test configuration loading

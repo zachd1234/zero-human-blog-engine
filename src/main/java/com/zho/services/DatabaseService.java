@@ -15,6 +15,8 @@ import java.sql.PreparedStatement;
 import com.zho.model.KeywordAnalysis;
 import java.util.ServiceLoader;
 import java.sql.Driver;
+import com.zho.model.BlogRequest;
+import com.zho.model.BlogRequest;
 
 public class DatabaseService {
     //in technical debt 
@@ -23,12 +25,15 @@ public class DatabaseService {
     public DatabaseService() {
         this.currentSiteId = Site.getCurrentSite().getSiteId();
     }
-    public void initializeDatabase() throws SQLException {
+    public void initializeDatabase(BlogRequest request) throws SQLException {
         try {
             clearTopics();
             clearPersonas();
+            clearBlogInfo();
             
-
+            // Add new blog info
+            updateBlogInfo(request.getTopic(), request.getDescription());
+            
         } catch (SQLException e) {
             System.err.println("Error clearing database tables: " + e.getMessage());
             throw e;
@@ -507,6 +512,78 @@ public class DatabaseService {
         } catch (SQLException e) {
             System.err.println("Error updating current site in database: " + e.getMessage());
             throw new RuntimeException("Database error while updating current site", e);
+        }
+    }
+
+    public void updateBlogInfo(String topic, String description) throws SQLException {
+        System.out.println("\n📝 Updating blog info...");
+        System.out.println("Topic: " + topic);
+        System.out.println("Description: " + description);
+        
+        try (Connection conn = getConnection()) {
+            // First clear existing blog info for this site
+            String clearSql = "DELETE FROM blog_info WHERE site_id = ?";
+            try (PreparedStatement clearStmt = conn.prepareStatement(clearSql)) {
+                clearStmt.setInt(1, currentSiteId);
+                clearStmt.executeUpdate();
+                System.out.println("✅ Cleared existing blog info");
+            }
+            
+            // Then insert new blog info
+            String insertSql = "INSERT INTO blog_info (site_id, topic, description) VALUES (?, ?, ?)";
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                insertStmt.setInt(1, currentSiteId);
+                insertStmt.setString(2, topic);
+                insertStmt.setString(3, description);
+                insertStmt.executeUpdate();
+                System.out.println("✅ Inserted new blog info");
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error updating blog info: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public void clearBlogInfo() throws SQLException {
+        System.out.println("\n🗑️ Clearing blog info...");
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement("DELETE FROM blog_info WHERE site_id = ?")) {
+            stmt.setInt(1, currentSiteId);
+            int rowsDeleted = stmt.executeUpdate();
+            System.out.println("✅ Cleared " + rowsDeleted + " blog info entries");
+        } catch (SQLException e) {
+            System.err.println("❌ Error clearing blog info: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public BlogRequest getBlogInfo() throws SQLException {
+        System.out.println("\n📚 Retrieving blog info...");
+        
+        String sql = "SELECT topic, description FROM blog_info WHERE site_id = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, currentSiteId);
+            ResultSet rs = stmt.executeQuery();
+            
+            if (rs.next()) {
+                BlogRequest info = new BlogRequest(
+                    rs.getString("topic"),
+                    rs.getString("description")
+                );
+                System.out.println("✅ Retrieved blog info for site " + currentSiteId);
+                return info;
+            } else {
+                System.out.println("⚠️ No blog info found for site " + currentSiteId);
+                return null;
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error retrieving blog info: " + e.getMessage());
+            throw e;
         }
     }
 } 
