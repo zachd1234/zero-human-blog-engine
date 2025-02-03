@@ -48,8 +48,8 @@ public class AppTest {
 
     @Test
     public void testSiteCount() {
-        int expectedCount = 2; // Adjust based on the number of sites you have
-        int actualCount = Site.values().length; // Assuming you have a method to get the count
+        int expectedCount = 3; // Updated to match the actual number of sites
+        int actualCount = Site.values().length;
         assertEquals("Total number of sites should match expected count", expectedCount, actualCount);
     }
 
