@@ -144,11 +144,20 @@ public class KoalaWriterClient {
         try {
             JSONObject requestBody = new JSONObject()
                 .put("targetKeyword", keyword)
-                .put("gptVersion", "claude-3.5-sonnet")
+                // TESTING MODE: Use GPT-4-mini for cheaper testing
+                .put("gptVersion", "gpt-4-mini")
+                // PRODUCTION MODE (uncomment below line and comment out above line)
+                // .put("gptVersion", "claude-3.5-sonnet")
                 .put("articleType", "blog_post")
+                // TESTING MODE: Shorter length for testing
+                .put("articleLength", "shorter")
+                // PRODUCTION MODE (uncomment below line and comment out above line)
+                // .put("articleLength", "short")
+                // Internal linking configuration
+                .put("internalLinkingDomainId", "4b437f51-0c3e-419c-b81e-f32fc3e15e5e")  // RuckQuest.com
+                // Common parameters
                 .put("seoOptimizationLevel", "ai_powered")
                 .put("multimediaOption", "auto")  // Both AI images and YouTube videos
-                .put("articleLength", "medium")
                 .put("toneOfVoiceProfile", "seo_optimized")
                 .put("language", "English")
                 .put("country", "United States")
@@ -180,8 +189,16 @@ public class KoalaWriterClient {
         try {
             JSONObject requestBody = new JSONObject()
                 .put("targetKeyword", keyword)
-                .put("gptVersion", "claude-3.5-sonnet")
+                // TESTING MODE: Use GPT-4-mini for cheaper testing
+                .put("gptVersion", "gpt-4-mini")
+                // PRODUCTION MODE (uncomment below line and comment out above line)
+                // .put("gptVersion", "gpt-4")
                 .put("articleType", "listicle")
+                // TESTING MODE: Minimal items for testing
+                .put("enableAutomaticLength", false)
+                .put("numberOfItems", 2)  // Using 2 items for testing
+                // PRODUCTION MODE (uncomment below line and comment out above 2 lines)
+                // .put("enableAutomaticLength", true)
                 // Common parameters
                 .put("language", "English")
                 .put("toneOfVoiceProfile", "seo_optimized")
@@ -193,10 +210,7 @@ public class KoalaWriterClient {
                     .put("remove-mid-article-conclusions", true)
                     .put("remove-repetitive-sentences", true)
                     .put("convert-passive-voice", true)
-                    .put("simplify-complex-sentences", true))
-                // Listicle-specific parameters
-                .put("enableSupplementalInformation", true)
-                .put("enableAutomaticLength", true);
+                    .put("simplify-complex-sentences", true));
 
             return makeArticleRequest(requestBody);
         } catch (Exception e) {
@@ -212,8 +226,15 @@ public class KoalaWriterClient {
         try {
             JSONObject requestBody = new JSONObject()
                 .put("targetKeyword", keyword)
-                .put("gptVersion", "claude-3.5-sonnet")
+                // TESTING MODE: Use GPT-4-mini for cheaper testing
+                .put("gptVersion", "gpt-4-mini")
+                // PRODUCTION MODE (uncomment below line and comment out above line)
+                // .put("gptVersion", "gpt-4")
                 .put("articleType", "amazon_product_roundup")
+                // TESTING MODE: Minimal products for testing
+                .put("numAmazonProducts", 2)  // Using 2 products for testing
+                // PRODUCTION MODE (uncomment below line and comment out above line)
+                // .put("numAmazonProducts", 10)
                 // Common parameters
                 .put("language", "English")
                 .put("toneOfVoiceProfile", "seo_optimized")
@@ -225,7 +246,9 @@ public class KoalaWriterClient {
                     .put("remove-mid-article-conclusions", true)
                     .put("remove-repetitive-sentences", true)
                     .put("convert-passive-voice", true)
-                    .put("simplify-complex-sentences", true));
+                    .put("simplify-complex-sentences", true))
+                .put("amazonDomain", "amazon.com")
+                .put("enableFirstHandExperience", true);
 
             return makeArticleRequest(requestBody);
         } catch (Exception e) {

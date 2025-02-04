@@ -58,7 +58,7 @@ public class AutoContentWorkflowService {
             // Choose content generation method based on blog settings
             if (site.isActive()) {
                 System.out.println("Using Koala Writer");
-                content = generateDynamicKoalaContent(keyword.getKeyword(), Long.valueOf(keyword.getId()), blogInfo.getTopic());
+                content = generateKoalaContentWithRetry(keyword.getKeyword(), Long.valueOf(keyword.getId()), blogInfo.getTopic());
             } else {
                 try {
                     content = postWriterService.createNewBlogPost(keyword.getKeyword());
@@ -249,93 +249,49 @@ public class AutoContentWorkflowService {
         System.out.println("\n🐨 Starting advanced content workflow...");
         System.out.println("Keyword: " + keyword);
         
-        try {
-            // 1. Get SERP data
-            KoalaWriterClient koalaClient = new KoalaWriterClient();
-            String serpResults = koalaClient.getSerpResults(keyword);
-            
-            // 2. Analyze content type with OpenAI
-            String contentTypePrompt = String.format(
-                "Based on these search results, determine the best content type for a new article. " +
-                "Consider user intent and existing content:\n\n%s\n\n" +
-                "Choose ONE type from: 'blog_post' (default), 'listicle', or 'amazon_product_roundup'. " +
-                "Reply with ONLY the content type, nothing else. " +
-                "Choose 'listicle' if the topic suits a numbered list format. " +
-                "Choose 'amazon_product_roundup' only if it's clearly about product comparisons or reviews.",
-                serpResults
-            );
-            
-            String contentType = openAIClient.callOpenAI(contentTypePrompt).trim().toLowerCase();
-            System.out.println("📊 Determined content type: " + contentType);
-            
-            // 3. Generate content based on type
-            JSONObject articleResponse;
-            try {
-                switch (contentType) {
-                    case "listicle":
-                        System.out.println("📝 Creating listicle format article...");
-                        articleResponse = koalaClient.createListicle(keyword);
-                        break;
-                    case "amazon_product_roundup":
-                        System.out.println("🛍️ Creating product roundup article...");
-                        articleResponse = koalaClient.createAmazonRoundup(keyword);
-                        break;
-                    default:
-                        System.out.println("📄 Creating standard blog post...");
-                        articleResponse = koalaClient.createOptimizedBlogPost(keyword);
-                        break;
-                }
-                
-                // Extract and format content
-                String content = articleResponse.getJSONObject("output").getString("html");
-                if (content.contains("<h1>") && content.contains("</h1>")) {
-                    content = content.substring(content.indexOf("</h1>") + 5).trim();
-                }
-                
-                System.out.println("✅ Content generated successfully on first attempt");
-                return content;
-                
-            } catch (Exception e) {
-                System.out.println("\n⚠️ First attempt failed, waiting 5 minutes before retry...");
-                System.out.println("Error: " + e.getMessage());
-                
-                // Retry logic
-                try {
-                    Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
-                    
-                    // Retry with the same content type
-                    switch (contentType) {
-                        case "listicle":
-                            articleResponse = koalaClient.createListicle(keyword);
-                            break;
-                        case "amazon_product_roundup":
-                            articleResponse = koalaClient.createAmazonRoundup(keyword);
-                            break;
-                        default:
-                            articleResponse = koalaClient.createOptimizedBlogPost(keyword);
-                            break;
-                    }
-                    
-                    String content = articleResponse.getJSONObject("output").getString("html");
-                    if (content.contains("<h1>") && content.contains("</h1>")) {
-                        content = content.substring(content.indexOf("</h1>") + 5).trim();
-                    }
-                    
-                    System.out.println("✅ Content generated successfully on second attempt");
-                    return content;
-                    
-                } catch (Exception retryException) {
-                    System.err.println("❌ Content generation failed after retry. Skipping this keyword.");
-                    System.err.println("Error: " + retryException.getMessage());
-                    databaseService.updateKeywordStatus(keywordId, "FAILED");
-                    return null;
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Error in content workflow: " + e.getMessage());
-            databaseService.updateKeywordStatus(keywordId, "FAILED");
-            return null;
+        // 1. Get SERP data
+        KoalaWriterClient koalaClient = new KoalaWriterClient();
+        String serpResults = koalaClient.getSerpResults(keyword);
+        
+        // 2. Analyze content type with OpenAI
+        String contentTypePrompt = String.format(
+            "Based on these search results, determine the best content type for a new article. " +
+            "Consider user intent and existing content:\n\n%s\n\n" +
+            "Choose ONE type from: 'blog_post' (default), 'listicle', or 'amazon_product_roundup'. " +
+            "Reply with ONLY the content type, nothing else. " +
+            "Choose 'listicle' if the topic suits a numbered list format. " +
+            "Choose 'amazon_product_roundup' only if it's clearly about product comparisons or reviews.",
+            serpResults
+        );
+        
+        String contentType = openAIClient.callOpenAI(contentTypePrompt).trim().toLowerCase();
+        System.out.println("📊 Determined content type: " + contentType);
+        
+        // 3. Generate content based on type
+        JSONObject articleResponse;
+        switch (contentType) {
+            case "listicle":
+                System.out.println("📝 Creating listicle format article...");
+                articleResponse = koalaClient.createListicle(keyword);
+                break;
+            case "amazon_product_roundup":
+                System.out.println("🛍️ Creating product roundup article...");
+                articleResponse = koalaClient.createAmazonRoundup(keyword);
+                break;
+            default:
+                System.out.println("📄 Creating standard blog post...");
+                articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+                break;
         }
+        
+        // Extract and format content
+        String content = articleResponse.getJSONObject("output").getString("html");
+        if (content.contains("<h1>") && content.contains("</h1>")) {
+            content = content.substring(content.indexOf("</h1>") + 5).trim();
+        }
+        
+        System.out.println("✅ Content generated successfully");
+        return content;
     }
 
     private String generateKoalaContentWithRetry(String keyword, Long keywordId, String blogTopic) {
@@ -344,46 +300,19 @@ public class AutoContentWorkflowService {
         
         try {
             KoalaWriterClient koalaClient = new KoalaWriterClient();
-            JSONObject articleResponse;
             
-            try {
-                System.out.println("📄 Creating standard blog post...");
-                articleResponse = koalaClient.createOptimizedBlogPost(keyword);
-                
-                // Extract and format content
-                String content = articleResponse.getJSONObject("output").getString("html");
-                if (content.contains("<h1>") && content.contains("</h1>")) {
-                    content = content.substring(content.indexOf("</h1>") + 5).trim();
-                }
-                
-                System.out.println("✅ Content generated successfully on first attempt");
-                return content;
-                
-            } catch (Exception e) {
-                System.out.println("\n⚠️ First attempt failed, waiting 5 minutes before retry...");
-                System.out.println("Error: " + e.getMessage());
-                
-                // Retry logic
-                try {
-                    Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
-                    
-                    articleResponse = koalaClient.createOptimizedBlogPost(keyword);
-                    
-                    String content = articleResponse.getJSONObject("output").getString("html");
-                    if (content.contains("<h1>") && content.contains("</h1>")) {
-                        content = content.substring(content.indexOf("</h1>") + 5).trim();
-                    }
-                    
-                    System.out.println("✅ Content generated successfully on second attempt");
-                    return content;
-                    
-                } catch (Exception retryException) {
-                    System.err.println("❌ Content generation failed after retry. Skipping this keyword.");
-                    System.err.println("Error: " + retryException.getMessage());
-                    databaseService.updateKeywordStatus(keywordId, "FAILED");
-                    return null;
-                }
+            System.out.println("📄 Creating standard blog post...");
+            JSONObject articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+            
+            // Extract and format content
+            String content = articleResponse.getJSONObject("output").getString("html");
+            if (content.contains("<h1>") && content.contains("</h1>")) {
+                content = content.substring(content.indexOf("</h1>") + 5).trim();
             }
+            
+            System.out.println("✅ Content generated successfully");
+            return content;
+            
         } catch (Exception e) {
             System.err.println("❌ Error in content workflow: " + e.getMessage());
             databaseService.updateKeywordStatus(keywordId, "FAILED");
