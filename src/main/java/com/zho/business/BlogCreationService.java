@@ -64,7 +64,7 @@ public class BlogCreationService {
     private void populateSite(BlogRequest request) throws IOException, ParseException {
         // Generate and upload visual assets
         logoService.generateAndUploadBranding(request);
-        blogLayoutService.updateCommitmentAccordion(request);
+        blogLayoutService.setUpLayout(request);
         staticContentService.populateStaticPages(request);
     }
 } 

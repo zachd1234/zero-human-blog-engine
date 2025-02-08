@@ -25,8 +25,11 @@ public class BlogLayoutService {
         this.getImgAIClient = new GetImgAIClient();
         this.mediaClient = new WordPressMediaClient();
     }
-
   
+    public void setUpLayout(BlogRequest blogRequest) {
+        updateCommitmentAccordion(blogRequest);
+        updateAuthorBlock(blogRequest);
+    }
 
     public void updateCommitmentAccordion(BlogRequest blogRequest) {
         int maxRetries = 3;
@@ -143,10 +146,9 @@ public class BlogLayoutService {
             String authorImageUrl = generateAndUploadAuthorImage(blogRequest);
             
             // Generate the author URL using the first name in lowercase
-            String authorUrl = "/author/" + firstName.toLowerCase() + "/";
             
             // Update the reusable block with new content and author URL
-            wpClient.updateAuthorBlock(authorName, jobTitle, authorBio, authorImageUrl, authorUrl);
+            wpClient.updateAuthorBlock(authorName, jobTitle, authorBio, authorImageUrl);
             
             // Update the WordPress admin user
             WordPressSettingsClient settingsClient = new WordPressSettingsClient();
@@ -218,7 +220,7 @@ public class BlogLayoutService {
         try {
             // List all FAQs first
             
-            BlogRequest request = new BlogRequest("Rucking", "All things rucking. guides, gear reviews, training plans, and expert tips to help you succeed with rucking. This blog is for those who want to learn how to ruck, what rucking is, and how to get started.");
+            BlogRequest request = new BlogRequest("French Poodles", "All things French Poodles.");
             service.updateAuthorBlock(request);
         } catch (Exception e) {
             e.printStackTrace();

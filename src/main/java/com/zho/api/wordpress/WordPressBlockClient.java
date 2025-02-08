@@ -594,6 +594,9 @@ public class WordPressBlockClient extends BaseWordPressClient {
         String siteTitle = getSiteTitle();
         String siteUrl = baseUrl.replaceAll("wp-json/wp/v2/$", "");
         
+        // Generate the author URL using the first name in lowercase
+        String authorUrl = siteUrl + "author/" + authorName.split(" ")[0].toLowerCase();
+        
         String content = String.format(
             "<!-- wp:kadence/rowlayout {\"uniqueID\":\"1458_35c24b-2c\",\"columns\":1,\"colLayout\":\"equal\",\"kbVersion\":2} -->\n" +
             "<!-- wp:kadence/column {\"uniqueID\":\"1458_21c883-b1\",\"kbVersion\":2} -->\n" +
@@ -621,13 +624,13 @@ public class WordPressBlockClient extends BaseWordPressClient {
             "<!-- /wp:paragraph -->\n\n" +
             "<!-- wp:kadence/advancedbtn {\"hAlign\":\"left\",\"uniqueID\":\"1458_ceca8d-9a\"} -->\n" +
             "<div class=\"wp-block-kadence-advancedbtn kb-buttons-wrap kb-btns1458_ceca8d-9a\">" +
-            "<!-- wp:kadence/singlebtn {\"uniqueID\":\"1458_24904e-a5\",\"text\":\"More About the Author\",\"link\":\"%sabout\"} /--></div>\n" +
+            "<!-- wp:kadence/singlebtn {\"uniqueID\":\"1458_24904e-a5\",\"text\":\"More About the Author\",\"link\":\"%s\"} /--></div>\n" +
             "<!-- /wp:kadence/advancedbtn --></div></div>\n" +
             "<!-- /wp:kadence/column -->\n" +
             "<!-- /wp:kadence/rowlayout --></div></div>\n" +
             "<!-- /wp:kadence/column -->\n" +
             "<!-- /wp:kadence/rowlayout -->",
-            imageUrl, authorName, jobTitle, authorBio, siteUrl
+            imageUrl, authorName, jobTitle, authorBio, authorUrl
         );
 
         JSONObject updatePayload = new JSONObject()
