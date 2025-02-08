@@ -14,6 +14,8 @@ import org.json.JSONObject;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.HttpRequest;
 import com.zho.model.Topic;
+import com.zho.services.DatabaseService;
+
 import java.util.List;
 import org.json.JSONArray;
 import java.net.URLEncoder;
@@ -561,55 +563,92 @@ public class WordPressBlockClient extends BaseWordPressClient {
         }
     }
 
+    public int getAuthorBlockId() throws IOException, ParseException {
+        String url = baseUrl + "blocks?search=author";  // Remove wp/v2/ as it's already in baseUrl
+        
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("Response body: " + responseBody); // Debug line
+            
+            JSONArray blocks = new JSONArray(responseBody);
+            
+            for (int i = 0; i < blocks.length(); i++) {
+                JSONObject block = blocks.getJSONObject(i);
+                String title = block.getJSONObject("title").getString("raw").toLowerCase();
+                if (title.contains("author")) {
+                    return block.getInt("id");
+                }
+            }
+            
+            throw new IOException("Author block not found. Please ensure a reusable block with 'author' in the title exists.");
+        }
+    }
+
+    public void updateAuthorBlock(String authorName, String jobTitle, String authorBio, String imageUrl) throws IOException, ParseException {
+        int blockId = getAuthorBlockId();
+        String url = baseUrl + "blocks/" + blockId;
+        
+        String siteTitle = getSiteTitle();
+        String siteUrl = baseUrl.replaceAll("wp-json/wp/v2/$", "");
+        
+        String content = String.format(
+            "<!-- wp:kadence/rowlayout {\"uniqueID\":\"1458_35c24b-2c\",\"columns\":1,\"colLayout\":\"equal\",\"kbVersion\":2} -->\n" +
+            "<!-- wp:kadence/column {\"uniqueID\":\"1458_21c883-b1\",\"kbVersion\":2} -->\n" +
+            "<div class=\"wp-block-kadence-column kadence-column1458_21c883-b1\"><div class=\"kt-inside-inner-col\">" +
+            "<!-- wp:kadence/rowlayout {\"uniqueID\":\"1458_fdce15-66\",\"colLayout\":\"equal\",\"kbVersion\":2} -->\n" +
+            "<!-- wp:kadence/column {\"uniqueID\":\"1458_d49288-3e\",\"kbVersion\":2} -->\n" +
+            "<div class=\"wp-block-kadence-column kadence-column1458_d49288-3e\"><div class=\"kt-inside-inner-col\">" +
+            "<!-- wp:image {\"sizeSlug\":\"large\"} -->\n" +
+            "<figure class=\"wp-block-image size-large\"><img src=\"%s\" alt=\"\"/></figure>\n" +
+            "<!-- /wp:image --></div></div>\n" +
+            "<!-- /wp:kadence/column -->\n\n" +
+            "<!-- wp:kadence/column {\"uniqueID\":\"1458_050b65-3a\",\"kbVersion\":2} -->\n" +
+            "<div class=\"wp-block-kadence-column kadence-column1458_050b65-3a\"><div class=\"kt-inside-inner-col\">" +
+            "<!-- wp:heading {\"level\":4} -->\n" +
+            "<h4 class=\"wp-block-heading\">Written By:</h4>\n" +
+            "<!-- /wp:heading -->\n\n" +
+            "<!-- wp:heading {\"level\":3} -->\n" +
+            "<h3 class=\"wp-block-heading\">%s</h3>\n" +
+            "<!-- /wp:heading -->\n\n" +
+            "<!-- wp:paragraph -->\n" +
+            "<p class=\"\">%s</p>\n" +
+            "<!-- /wp:paragraph -->\n\n" +
+            "<!-- wp:paragraph -->\n" +
+            "<p class=\"\">%s</p>\n" +
+            "<!-- /wp:paragraph -->\n\n" +
+            "<!-- wp:kadence/advancedbtn {\"hAlign\":\"left\",\"uniqueID\":\"1458_ceca8d-9a\"} -->\n" +
+            "<div class=\"wp-block-kadence-advancedbtn kb-buttons-wrap kb-btns1458_ceca8d-9a\">" +
+            "<!-- wp:kadence/singlebtn {\"uniqueID\":\"1458_24904e-a5\",\"text\":\"More About the Author\",\"link\":\"%sabout\"} /--></div>\n" +
+            "<!-- /wp:kadence/advancedbtn --></div></div>\n" +
+            "<!-- /wp:kadence/column -->\n" +
+            "<!-- /wp:kadence/rowlayout --></div></div>\n" +
+            "<!-- /wp:kadence/column -->\n" +
+            "<!-- /wp:kadence/rowlayout -->",
+            imageUrl, authorName, jobTitle, authorBio, siteUrl
+        );
+
+        JSONObject updatePayload = new JSONObject()
+            .put("content", new JSONObject().put("raw", content));
+        
+        HttpPost updateRequest = new HttpPost(URI.create(url));
+        setAuthHeader(updateRequest);
+        updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+        updateRequest.setHeader("Content-Type", "application/json");
+        
+        try (CloseableHttpResponse response = httpClient.execute(updateRequest)) {
+            if (response.getCode() != 200) {
+                throw new IOException("Failed to update author block. Status: " + response.getCode());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             WordPressBlockClient client = new WordPressBlockClient();
-            
-            // Test 1: Update mission paragraph (uniqueID: 609_29304f-69)
-            JSONObject missionProps = new JSONObject()
-                .put("uniqueID", "609_29304f-69")
-                .put("markBorder", "")
-                .put("htmlTag", "p");
-            client.updateBlock(609, BlockType.KADENCE_HEADING, "609_29304f-69", 
-                "Test mission statement update", missionProps);
-            
-            // Test 2: Update main heading (uniqueID: 609_a8d80a-ca)
-            JSONObject headingProps = new JSONObject()
-                .put("uniqueID", "609_a8d80a-ca")
-                .put("level", 1)
-                .put("align", "center")
-                .put("color", "#ffffff")
-                .put("typography", "Jost")
-                .put("googleFont", true)
-                .put("fontSubset", "latin")
-                .put("fontVariant", "700")
-                .put("fontWeight", "700")
-                .put("textTransform", "none")
-                .put("fontSize", new int[]{60, 0, 40})
-                .put("fontHeight", new int[]{68, 0, 48})
-                .put("fontHeightType", "px");
-            client.updateBlock(609, BlockType.KADENCE_HEADING, "609_a8d80a-ca", 
-                "Test Main Heading Update", headingProps);
-            
-            // Test 3: Update topics section using TopicConfig format
-            String[] testTopics = {"Topic 1", "Topic 2", "Topic 3"};
-            StringBuilder topicsContent = new StringBuilder();
-            topicsContent.append("<!-- wp:group {\"layout\":{\"type\":\"flex\",\"orientation\":\"vertical\"}} -->\n");
-            topicsContent.append("<div class=\"wp-block-group\">\n");
-            
-            for (String topic : testTopics) {
-                topicsContent.append("<!-- wp:paragraph -->\n");
-                topicsContent.append("<p>").append(topic).append("</p>\n");
-                topicsContent.append("<!-- /wp:paragraph -->\n");
-            }
-            
-            topicsContent.append("</div>\n");
-            topicsContent.append("<!-- /wp:group -->");
-            
-            client.updateBlock(609, BlockType.GROUP_BLOCK, null, topicsContent.toString(), null);
-            
-            System.out.println("All test updates completed successfully!");
-            
+            System.out.println(client.getAuthorBlockId());
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();

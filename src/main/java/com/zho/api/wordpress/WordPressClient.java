@@ -5,12 +5,14 @@ public class WordPressClient {
     private final WordPressMediaClient mediaClient;
     private final WordPressBlockClient blockClient;
     private final WordPressPostClient postClient;
+    private final WordPressSettingsClient settingsClient;
 
     public WordPressClient() {
         this.categoryClient = new WordPressCategoryClient();
         this.mediaClient = new WordPressMediaClient();
         this.blockClient = new WordPressBlockClient();
         this.postClient = new WordPressPostClient();
+        this.settingsClient = new WordPressSettingsClient();
     }
 
     public WordPressCategoryClient categories() {
@@ -27,5 +29,9 @@ public class WordPressClient {
 
     public WordPressPostClient posts() {
         return postClient;
+    }
+
+    public WordPressSettingsClient settings() {
+        return settingsClient;
     }
 }

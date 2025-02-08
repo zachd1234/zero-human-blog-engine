@@ -486,17 +486,6 @@ public class DatabaseService {
         }
     }
 
-    public static void main(String[] args) {
-        DatabaseService dbService = new DatabaseService();
-            
-        // First clear the table
-        try{
-            dbService.clearKeywords();
-        } catch (SQLException e) {
-            System.err.println("Error clearing keywords: " + e.getMessage());
-            throw new RuntimeException("Database error while clearing keywords", e);
-        }
-    }
 
     public static void updateCurrentSiteInDatabase(int siteId) {
         String sql = "UPDATE current_site SET site_id = ?";  // Adjust this query as needed
@@ -584,6 +573,17 @@ public class DatabaseService {
         } catch (SQLException e) {
             System.err.println("❌ Error retrieving blog info: " + e.getMessage());
             throw e;
+        }
+    }
+    
+    public static void main(String[] args) {
+        DatabaseService dbService = new DatabaseService();
+            
+        try{
+            dbService.clearTopics();
+        } catch (SQLException e) {
+            System.err.println("Error clearing keywords: " + e.getMessage());
+            throw new RuntimeException("Database error while clearing keywords", e);
         }
     }
 } 

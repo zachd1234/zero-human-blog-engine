@@ -109,16 +109,57 @@ public class AutoContentWorkflowService {
             
             System.out.println("Successfully published post for: " + keyword.getKeyword());
             System.out.println("URL: " + postResponse.getUrl());
-            
+            indexPage(postResponse.getUrl());
+
         } catch (Exception e) {
             System.err.println("Error in content workflow: " + e.getMessage());
         }
     }
 
+    //TO DELETE LATER
+    public void indexPageTesting() {
+        String content = "<p>This is a test article with enough content to be considered valid.</p>";
+        String title = "Test Article for Indexing1";
+        String category = "uncategorized";
+        Integer categoryId = 1;
+        String slug = "test-article-indexing1";
+        String metaDescription = "This is a test article to verify indexing.";
+
+        try {
+            System.out.println("\n🚀 Starting indexing test...");
+            
+            BlogPost blogPost = new BlogPost(0, title, content, null, category, categoryId, slug, metaDescription);
+            WordPressPostClient wordPressPostClient = new WordPressPostClient();
+            
+            System.out.println("📝 Publishing test post...");
+            PostResponse postResponse = wordPressPostClient.publishPost(blogPost); 
+            System.out.println("✅ Post published: " + postResponse.getUrl());
+            
+            // Add delay to ensure post is accessible
+            System.out.println("⏳ Waiting for post to be accessible...");
+            Thread.sleep(2000);
+            
+            // Index the actual post URL
+            indexPage(postResponse.getUrl());
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error in indexing test: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     private void indexPage(String url) throws IOException {
-        GoogleSearchConsoleClient googleSearchConsole = new GoogleSearchConsoleClient();
-        googleSearchConsole.submitUrl(url);
+        System.out.println("\n🔍 Starting indexing process...");
+        System.out.println("URL to index: " + url);
+        
+        try {
+            GoogleSearchConsoleClient googleSearchConsole = new GoogleSearchConsoleClient();
+            googleSearchConsole.submitUrl(url);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error during indexing: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private String determineCategory(String title) {
@@ -333,8 +374,8 @@ public class AutoContentWorkflowService {
             System.out.println("Description: " + blogInfo.getDescription());
             
             // Process one keyword
-            System.out.println("\n🎯 Processing next keyword...");
-            service.processNextKeyword();
+            System.out.println("\n🎯 Index Page testing...");
+            service.indexPageTesting();
             
         } catch (Exception e) {
             System.err.println("\n❌ Error during testing: " + e.getMessage());

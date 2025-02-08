@@ -130,7 +130,6 @@ public class PersonaService {
             this.expertise = persona.getString("expertise");
             this.biography = persona.getString("biography");
             
-            this.writingTone = generateWritingTone(topic);
             this.systemPrompt = generateSystemPrompt(topic);
             
         } catch (JSONException e) {
@@ -194,20 +193,6 @@ public class PersonaService {
 
     public String getImageUrl() {
         return imageUrl;
-    }
-    
-    private String generateWritingTone(String topic) throws IOException {
-        String prompt = String.format(
-            "Based on this person's background and appearance:\n" +
-            "Background: %s\n" +
-            "Appearance: %s\n\n" +
-            "Describe their natural writing tone in 2-3 words" +
-            "The tone should authentically reflect their personality.",
-            this.biography,
-            this.imageUrl,
-            topic
-        );
-        return openAIClient.callGPT4(prompt);
     }
 
     private String generateSystemPrompt(String topic) throws IOException {

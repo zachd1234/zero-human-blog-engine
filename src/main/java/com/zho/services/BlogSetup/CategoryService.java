@@ -57,15 +57,15 @@ public class CategoryService {
 
     private List<Topic> parseTopicsResponse(String response) {
         List<Topic> topics = new ArrayList<>();
-        int siteId = Site.getCurrentSite().getSiteId();  // Assuming you have a method to get the current site ID
-
-        String blogLink;
-        if (siteId == 1) {
-            blogLink = "https://website-77d59705.mbt.dsc.mybluehost.me/blog/";
-        } else {
-            blogLink = "https://mbt.dsc.mybluehost.me/blog/";
-        }
-
+        Site currentSite = Site.getCurrentSite();
+        
+        // Get the base URL from the current site and transform it to blog URL
+        String blogLink = currentSite.getUrl()
+            .replace("/wp-json/wp/v2/", "")  // Remove the API path
+            .replace("https://", "https://")  // Remove double https if any
+            .replaceAll("/$", "")  // Remove trailing slash if present
+            + "/blog/";  // Add blog path
+        
         String[] lines = response.split("\n");
 
         for (String line : lines) {
@@ -93,8 +93,8 @@ public class CategoryService {
         try {
             CategoryService service = new CategoryService();
             BlogRequest testRequest = new BlogRequest(
-                "coffee brewing",
-                "coffee brewing"
+                "rucking",
+                "all things rucking"
             );
             
             service.setupSubtopics(testRequest);
