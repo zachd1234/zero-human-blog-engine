@@ -153,7 +153,6 @@ public class WordPressPostClient extends BaseWordPressClient {
         String url = baseUrl + "pages/" + pageId;
         
         JSONObject updatePayload = new JSONObject()
-            .put("title", title)
             .put("yoast_meta", new JSONObject()
                 .put("yoast_wpseo_metadesc", metaDescription)
                 .put("yoast_wpseo_title", title));
