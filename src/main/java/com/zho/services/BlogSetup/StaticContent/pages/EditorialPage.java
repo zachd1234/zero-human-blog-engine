@@ -8,6 +8,8 @@ import com.zho.model.Image;
 import com.zho.api.OpenAIClient;
 import com.zho.api.wordpress.WordPressBlockClient;
 import java.util.List;
+import java.sql.SQLException;
+import com.zho.services.DatabaseService;
 
 public class EditorialPage implements StaticPage {
     private final WordPressBlockClient wpClient;
@@ -82,6 +84,41 @@ public class EditorialPage implements StaticPage {
         return pageId != null ? pageId : -1;
     }
     
+    @Override
+    public String getTitleTemplate() {
+        return "Generate a title for the Editorial page"; // Won't be used
+    }
+
+    @Override
+    public String getMetaDescriptionTemplate() {
+        try {
+            BlogRequest blogInfo = new DatabaseService().getBlogInfo();
+            String siteName = new WordPressBlockClient().getSiteTitle();
+            
+            return String.format(
+                "Write a single sentence (120-150 characters) explaining how %s ensures quality and accuracy " +
+                "in its %s content. Focus on: %s",
+                siteName,
+                blogInfo.getTopic(),
+                blogInfo.getDescription()
+            );
+        } catch (IOException | ParseException | SQLException e) {
+            System.err.println("Error getting blog info or site title: " + e.getMessage());
+            return "Write a single sentence (120-150 characters) explaining the site's editorial process " +
+                   "and commitment to quality content.";
+        }
+    }
+    
+    @Override
+    public boolean hasHardcodedTitle() {
+        return true;
+    }
+
+    @Override
+    public String getHardcodedTitle() {
+        return "Our Editorial Process";
+    }
+
     public static void main(String[] args) {
         try {
             // Create test instances
@@ -89,18 +126,9 @@ public class EditorialPage implements StaticPage {
             EditorialPage editorialPage = new EditorialPage(wpClient);
             
             // Create a test BlogRequest
-            BlogRequest request = new BlogRequest(
-                "Rucking",
-                "All things rucking. Guides, gear reviews, training plans, and expert tips to help you succeed with rucking"
-            );
-            
-            // Print initial info
-            System.out.println("Page ID: " + editorialPage.getPageId());
-            System.out.println("Page Name: " + editorialPage.getPageName());
-            
+            System.out.println(editorialPage.getMetaDescriptionTemplate() + editorialPage.getTitleTemplate());            
             // Update the content
             System.out.println("Updating editorial guidelines...");
-            editorialPage.updateStaticContent(request, null);
             System.out.println("Update complete!");
             
         } catch (Exception e) {

@@ -206,6 +206,46 @@ public class HomePage implements StaticPage {
         );
     }
 
+    @Override
+    public String getTitleTemplate() {
+        return "Generate a title for the Home page"; // Won't be used
+    }
+
+    @Override
+    public String getMetaDescriptionTemplate() {
+        try {
+            BlogRequest blogInfo = new DatabaseService().getBlogInfo();
+            String siteName = new WordPressBlockClient().getSiteTitle();
+            return String.format(
+                "Write a single compelling sentence (120-150 characters) that explains how %s helps readers with %s. " +
+                "Focus on the main value proposition.",
+                siteName,
+                blogInfo.getTopic()
+            );
+        } catch (IOException | ParseException | SQLException e) {
+            System.err.println("Error getting blog info: " + e.getMessage());
+            return "Write a single compelling sentence (120-150 characters) that explains the blog's main value proposition.";
+        }
+    }
+
+    @Override
+    public boolean hasHardcodedTitle() {
+        return true;
+    }
+
+    @Override
+    public String getHardcodedTitle() {
+        try {
+            WordPressBlockClient wpClient = new WordPressBlockClient();
+            String siteTitle = wpClient.getSiteTitle();
+            String siteSlogan = wpClient.getSiteSlogan();
+            return String.format("%s – %s", siteTitle, siteSlogan);
+        } catch (IOException | ParseException e) {
+            System.err.println("Error getting site title or slogan: " + e.getMessage());
+            return "Home"; // Fallback
+        }
+    }
+
     public static void main(String[] args) {
         try {
             // Initialize dependencies
@@ -216,11 +256,8 @@ public class HomePage implements StaticPage {
             // Create HomePage instance
             HomePage homePage = new HomePage(blockClient, openAIClient, mediaClient, databaseService);
             
-            // Create test BlogRequest
-            BlogRequest testRequest = new BlogRequest(
-                "Y Combinator",
-                "Y Combinator News"
-            );
+
+            System.out.println(homePage.getMetaDescriptionTemplate() + homePage.getTitleTemplate());
             
             // Test updateHeadingAndSubheading
             System.out.println("Testing heading and subheading update...");

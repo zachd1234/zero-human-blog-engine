@@ -15,7 +15,9 @@ import com.zho.services.DatabaseService;
 import com.zho.services.BlogSetup.StaticContent.pages.AboutPage;
 import com.zho.services.BlogSetup.StaticContent.pages.EditorialPage;
 import com.zho.services.BlogSetup.StaticContent.pages.HomePage;
+import com.zho.services.BlogSetup.StaticContent.pages.PostsPage;
 import com.zho.services.BlogSetup.StaticContent.pages.StaticPage;
+import com.zho.services.BlogSetup.StaticContent.pages.ContactPage;
 import java.util.stream.Collectors;
 
 public class StaticContentService {
@@ -37,7 +39,10 @@ public class StaticContentService {
         this.pages = Arrays.asList(
             new HomePage(blockClient, openAIClient, mediaClient, databaseService),
             new AboutPage(blockClient, openAIClient, mediaClient, databaseService),
-            new EditorialPage(blockClient));
+            new EditorialPage(blockClient),
+            new ContactPage(),
+            new PostsPage()
+        );
     }
 
     public void populateStaticPages(BlogRequest request) throws IOException, ParseException {
@@ -224,6 +229,10 @@ public class StaticContentService {
         String permanentUrl = mediaClient.uploadImageFromUrl(tempImageUrl);
         
         return new Image("", permanentUrl, prompt);  // Use the permanent WordPress URL
+    }
+
+    public List<StaticPage> getPages() {
+        return this.pages;
     }
 
     public static void main(String[] args) {

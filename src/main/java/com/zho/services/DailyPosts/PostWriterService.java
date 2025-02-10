@@ -18,11 +18,17 @@ public class PostWriterService {
     }
 
     public String createNewBlogPost(String keyword, String title) throws IOException {
-        currentOutline = generateOutline(keyword);
+        System.out.println("\n=== Starting Blog Post Creation ===");
+        System.out.println("Keyword: " + keyword);
+        System.out.println("Title: " + title);
+
+        currentOutline = generateOutline(keyword, title);
         System.out.println("Generated outline:\n" + currentOutline);
 
         List<OutlineSection> sectionTitles = parseSectionTitles(currentOutline);
         StringBuilder fullPost = new StringBuilder();
+        
+        fullPost.append("# ").append(title).append("\n\n");
         
         for (OutlineSection sectionTitle : sectionTitles) {
             System.out.println("Generating section: " + sectionTitle.title);
@@ -94,19 +100,19 @@ public class PostWriterService {
         return analysis;
     }
 
-    public String generateOutline(String keyword) throws IOException {
+    public String generateOutline(String keyword, String title) throws IOException {
         // First, get audience and take
         String audienceAnalysis = analyzeAudience(keyword);
         
         String prompt = String.format(
-            "Generate an outline for a blog post targeting the keyword '%s'. " + 
-            "The blog should satisfy the search intent of the target audience %n\n" +
+            "Generate an outline for a blog post with the exact title: '%s'\n" +
+            "The blog should target the keyword '%s' and satisfy the search intent of the target audience %s\n\n" +
             "Structure requirements:\n" +
             "- First section MUST directly answer the search query/main question immediately\n" +
             "- Each section (H2 and H3) should have 2-4 key points\n" +
             "- Points can be brief ideas or concepts to write about\n\n" +
             "Format:\n" +
-            "# Main Title\n\n" +
+            "# %s\n\n" +
             "## 1. [Section Title]\n" +
             "1.1 [First point for the paragraph]\n" +
             "1.2 [Second point for the paragraph]\n" +
@@ -117,8 +123,10 @@ public class PostWriterService {
             "## 2. [Next Section]\n" +
             "[...etc...]\n\n" +
             "Return only the outline with proper markdown formatting.",
+            title,
+            keyword,
             audienceAnalysis,
-            keyword
+            title
         );
         
         this.currentOutline = openAIClient.callGPT4(prompt);
@@ -243,7 +251,7 @@ public class PostWriterService {
             String keyword = "environmental impact assessment report for housing development";
             System.out.println("Testing blog post generation for: " + keyword);
             // Generate full post
-            String fullPost = engine.createNewBlogPost(keyword);
+            String fullPost = engine.createNewBlogPost(keyword, "Environmental Impact Assessment Report for Housing Development");
             System.out.println("\nGenerated Full Post:");
             System.out.println(fullPost);
             

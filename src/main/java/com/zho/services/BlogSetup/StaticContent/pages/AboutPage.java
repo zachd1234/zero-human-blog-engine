@@ -156,4 +156,44 @@ public class AboutPage implements StaticPage {
     public int getRequiredImageCount() {
         return imagesNeeded; 
     }
+
+    @Override
+    public String getTitleTemplate() {
+        return "Generate a title for the About page"; // This won't be used if hasHardcodedTitle is true
+    }
+
+    @Override
+    public String getMetaDescriptionTemplate() {
+        try {
+            BlogRequest blogInfo = new DatabaseService().getBlogInfo();
+            String siteName = new WordPressBlockClient().getSiteTitle();
+            
+            return String.format(
+                "Generate a 119-135 character meta description for the About page of %s (%s). " +
+                "Focus on the blog's mission and purpose. Make it inviting and trustworthy.",
+                siteName,
+                blogInfo.getTopic()
+            );
+        } catch (IOException | ParseException | SQLException e) {
+            System.err.println("Error getting blog info or site title: " + e.getMessage());
+            // Fallback to a generic template
+            return "Generate a 119-135 character meta description for the About page that " +
+                   "focuses on the blog's mission and purpose. Make it inviting and trustworthy.";
+        }
+    }
+
+    @Override
+    public boolean hasHardcodedTitle() {
+        return true;
+    }
+
+    @Override
+    public String getHardcodedTitle() {
+        return "About Us";
+    }
+
+    public static void main(String[] args) {
+        AboutPage aboutPage = new AboutPage(new WordPressBlockClient(), new OpenAIClient(), new WordPressMediaClient(), new DatabaseService());
+        System.out.println(aboutPage.getMetaDescriptionTemplate());
+    }
 }

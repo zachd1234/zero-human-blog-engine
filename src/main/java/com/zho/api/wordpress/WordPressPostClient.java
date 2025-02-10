@@ -149,13 +149,32 @@ public class WordPressPostClient extends BaseWordPressClient {
         return executeRequest(request);
     }
 
+    public void updatePageTitleAndMeta(int pageId, String metaDescription, String title) throws IOException, ParseException {
+        String url = baseUrl + "pages/" + pageId;
+        
+        JSONObject updatePayload = new JSONObject()
+            .put("title", title)
+            .put("yoast_meta", new JSONObject()
+                .put("yoast_wpseo_metadesc", metaDescription)
+                .put("yoast_wpseo_title", title));
+        
+        HttpPost updateRequest = new HttpPost(URI.create(url));
+        setAuthHeader(updateRequest);
+        updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+        updateRequest.setHeader("Content-Type", "application/json");
+        
+        try (CloseableHttpResponse response = httpClient.execute(updateRequest)) {
+            if (response.getCode() != 200) {
+                throw new IOException("Failed to update page meta. Status: " + response.getCode());
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             WordPressPostClient client = new WordPressPostClient();
             
-            BlogPost testPost = new BlogPost(1536, "test post title", "test post content", null, "test", 1, "test-post-title3", "this is a test meta. blah blah blah");
-            client.publishPost(testPost);
-            // Test updating both meta description and SEO title
+            client.updatePageTitleAndMeta(609, "hi", "hi");
             System.out.println("Meta description and SEO title update attempted for post 1536");
             
         } catch (Exception e) {

@@ -16,6 +16,7 @@ import java.io.IOException;
 import org.apache.hc.core5.http.ParseException;
 import java.sql.SQLException;
 import com.zho.services.BlogSetup.BlogLayoutService;
+import com.zho.services.BlogSetup.SEOSetupService;
 
 public class BlogCreationService {
     // Configuration constants
@@ -30,6 +31,7 @@ public class BlogCreationService {
     private final ContentEngineService contentEngineService;
     private final GarbageCollectionService garbageCollectionService;
     private final BlogLayoutService blogLayoutService;
+    private final SEOSetupService seoSetupService;
     
     public BlogCreationService() {
         this.dbService = new DatabaseService();
@@ -41,6 +43,7 @@ public class BlogCreationService {
         this.contentEngineService = new ContentEngineService(); 
         this.garbageCollectionService = new GarbageCollectionService();
         this.blogLayoutService = new BlogLayoutService();
+        this.seoSetupService = new SEOSetupService();
     }
     
     public void AutoBlogEngine(BlogRequest request) throws Exception {
@@ -63,8 +66,10 @@ public class BlogCreationService {
     
     private void populateSite(BlogRequest request) throws IOException, ParseException {
         // Generate and upload visual assets
+    
         logoService.generateAndUploadBranding(request);
         blogLayoutService.setUpLayout(request);
         staticContentService.populateStaticPages(request);
+        seoSetupService.setupSEO();
     }
 } 

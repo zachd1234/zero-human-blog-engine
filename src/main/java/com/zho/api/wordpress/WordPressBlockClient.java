@@ -550,7 +550,7 @@ public class WordPressBlockClient extends BaseWordPressClient {
         }
     }
 
-    public String getSiteTitle() throws IOException, ParseException {
+    public String getSiteSlogan() throws IOException, ParseException {
         String url = baseUrl.replaceFirst("wp/v2/", ""); // Remove wp/v2/ to access root endpoint
         
         HttpGet getRequest = new HttpGet(URI.create(url));
@@ -559,7 +559,7 @@ public class WordPressBlockClient extends BaseWordPressClient {
         try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
             String responseBody = EntityUtils.toString(response.getEntity());
             JSONObject siteInfo = new JSONObject(responseBody);
-            return siteInfo.getString("name");
+            return siteInfo.getString("description");  // WordPress stores the tagline as "description"
         }
     }
 
@@ -648,10 +648,24 @@ public class WordPressBlockClient extends BaseWordPressClient {
         }
     }
 
+    public String getSiteTitle() throws IOException, ParseException {
+        String url = baseUrl.replaceFirst("wp/v2/", ""); // Remove wp/v2/ to access root endpoint
+        
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject siteInfo = new JSONObject(responseBody);
+            return siteInfo.getString("name");
+        }
+    }
+
+
     public static void main(String[] args) {
         try {
             WordPressBlockClient client = new WordPressBlockClient();
-            System.out.println(client.getAuthorBlockId());
+            System.out.println(client.getSiteSlogan());
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();

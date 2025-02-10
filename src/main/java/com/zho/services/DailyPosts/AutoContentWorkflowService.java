@@ -71,7 +71,7 @@ public class AutoContentWorkflowService {
                     System.out.println("First attempt failed, waiting 5 minutes before retry...");
                     try {
                         Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
-                        content = postWriterService.createNewBlogPost(keyword.getKeyword());
+                        content = postWriterService.createNewBlogPost(keyword.getKeyword(), title);
                     } catch (IOException | InterruptedException retryException) {
                         System.err.println("Content generation failed after retry. Skipping this keyword.");
                         databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "FAILED");
@@ -112,8 +112,6 @@ public class AutoContentWorkflowService {
             databaseService.updateKeywordPostUrl(Long.valueOf(keyword.getId()), postResponse.getUrl());
             
             System.out.println("Successfully published post for: " + keyword.getKeyword());
-            System.out.println("URL: " + postResponse.getUrl());
-            indexPage(postResponse.getUrl());
 
         } catch (Exception e) {
             System.err.println("Error in content workflow: " + e.getMessage());
@@ -351,7 +349,7 @@ public class AutoContentWorkflowService {
         System.out.println("Keyword: " + keyword);
         
         try {
-            String content = postWriterService.createNewBlogPost(keyword);
+            String content = postWriterService.createNewBlogPost(keyword, "");
             System.out.println("✅ Content generated successfully on first attempt");
             return content;
         } catch (IOException e) {
@@ -360,7 +358,7 @@ public class AutoContentWorkflowService {
             
             try {
                 Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
-                String content = postWriterService.createNewBlogPost(keyword);
+                String content = postWriterService.createNewBlogPost(keyword, "");
                 System.out.println("✅ Content generated successfully on second attempt");
                 return content;
             } catch (IOException | InterruptedException retryException) {
@@ -454,15 +452,7 @@ public class AutoContentWorkflowService {
             System.out.println("\n🚀 Testing AutoContentWorkflowService...");
             
             AutoContentWorkflowService service = new AutoContentWorkflowService();
-
-            String title = service.generateTitle("how to start rucking");
-            System.out.println("Title: " + title);
-
-            String title2 = service.generateTitle("rucking accessories");
-            System.out.println("Title: " + title2);
-
-            String title3 = service.generateTitle("best rucking boots");
-            System.out.println("Title: " + title3);
+            service.processNextKeyword();
 
         } catch (Exception e) {
             System.err.println("\n❌ Error during testing: " + e.getMessage());
