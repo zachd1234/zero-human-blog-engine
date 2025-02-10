@@ -235,7 +235,7 @@ public class SiteBrandingService {
         try {
             // Create test blog requests
             BlogRequest[] testRequests = {
-                new BlogRequest("rucking", "All things rucking. guides, gear reviews, training plans, and expert tips to help you succeed with rucking"),
+                new BlogRequest("Y Combinator", "Y Combinator News"),
             };
 
             SiteBrandingService logoAndFaviconService = new SiteBrandingService(new WordPressMediaClient());

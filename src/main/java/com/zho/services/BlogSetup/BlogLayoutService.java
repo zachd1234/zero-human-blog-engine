@@ -143,7 +143,7 @@ public class BlogLayoutService {
             String authorBio = openAIClient.callOpenAI(bioPrompt);
             
             // Generate and upload the author image
-            String authorImageUrl = generateAndUploadAuthorImage(blogRequest);
+            String authorImageUrl = generateAndUploadAuthorImage(blogRequest, authorName);
             
             // Generate the author URL using the first name in lowercase
             
@@ -181,10 +181,9 @@ public class BlogLayoutService {
         return openAIClient.callGPT4(prompt);
     }
 
-    private String generateAndUploadAuthorImage(BlogRequest blogRequest) throws IOException {
+    private String generateAndUploadAuthorImage(BlogRequest blogRequest, String authorName) throws IOException {
         // Generate the image description
         String imageDescription = generateAuthorImagePrompt(blogRequest.getTopic() + ". The image exhibits a high level of realism, reminiscent of modern portrait photography, in 4K UHD quality, suitable for a profile picture or official use");
-        System.out.println("Generated image description: " + imageDescription);
         
         // Generate the image
         String imageUrl = getImgAIClient.generateImage(
@@ -196,11 +195,11 @@ public class BlogLayoutService {
         );
         
         // Download image locally
-        String localImagePath = "/Users/zachderhake/Desktop/author_" + blogRequest.getTopic().replaceAll("\\s+", "_") + ".jpg";
+        String localImagePath = "/Users/zachderhake/Desktop/author_" + authorName.replaceAll("\\s+", "_") + ".jpg";
         downloadImage(imageUrl, localImagePath);
         
         // Upload to WordPress
-        return mediaClient.uploadMediaFromFile(localImagePath, "Author Image - " + blogRequest.getTopic());
+        return mediaClient.uploadMediaFromFile(localImagePath, "Author Image - " + authorName);
     }
 
     private void downloadImage(String imageUrl, String destinationPath) throws IOException {
@@ -220,7 +219,7 @@ public class BlogLayoutService {
         try {
             // List all FAQs first
             
-            BlogRequest request = new BlogRequest("French Poodles", "All things French Poodles.");
+            BlogRequest request = new BlogRequest("Y Combinator", "Y Combinator News");
             service.updateAuthorBlock(request);
         } catch (Exception e) {
             e.printStackTrace();

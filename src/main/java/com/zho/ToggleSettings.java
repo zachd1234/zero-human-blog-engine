@@ -11,6 +11,6 @@ public class ToggleSettings {
     
     public static void main(String[] args) {
        //ACTIVATE THE METHODS YOU WISH TO USE
-        switchSite(Site.SITE3);
+        switchSite(Site.TEST);
     }
 }

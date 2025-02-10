@@ -229,7 +229,7 @@ public class StaticContentService {
     public static void main(String[] args) {
         try {
             // Create test blog requests
-            BlogRequest testRequest = new BlogRequest("rucking", "Rooted in military training, Rucking combines strength and cardio into one powerful workout. Discover tips, gear reviews, and training plans to help you build endurance, burn calories, and enjoy the outdoors—all with just a weighted backpack");
+            BlogRequest testRequest = new BlogRequest("Y Combinator", "Y Combinator News");
             // Initialize service
             StaticContentService service = new StaticContentService();
             

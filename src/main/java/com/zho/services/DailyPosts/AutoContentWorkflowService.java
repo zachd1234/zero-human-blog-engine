@@ -14,11 +14,14 @@ import com.zho.model.Image;
 import com.zho.api.GoogleSearchConsoleClient;
 import com.zho.api.wordpress.WordPressCategoryClient;
 import com.zho.api.wordpress.WordPressMediaClient;
-import com.zho.api.KoalaWriterClient;
+import com.zho.api.KoalaAIClient;
 import com.zho.model.BlogRequest;
+
+import org.checkerframework.common.returnsreceiver.qual.This;
 import org.json.JSONObject;
 
 import java.util.List;
+import java.util.Arrays;
 
 public class AutoContentWorkflowService {
     private final DatabaseService databaseService;
@@ -50,6 +53,8 @@ public class AutoContentWorkflowService {
 
             System.out.println("Processing keyword: " + keyword.getKeyword());
             
+            String title = generateTitle(keyword.getKeyword());
+
             // 2. Try to generate content with one retry
             String content = null;
             BlogRequest blogInfo = databaseService.getBlogInfo();
@@ -58,10 +63,10 @@ public class AutoContentWorkflowService {
             // Choose content generation method based on blog settings
             if (site.isActive()) {
                 System.out.println("Using Koala Writer");
-                content = generateKoalaContentWithRetry(keyword.getKeyword(), Long.valueOf(keyword.getId()), blogInfo.getTopic());
+                content = generateKoalaContentWithRetry(keyword.getKeyword(), Long.valueOf(keyword.getId()), blogInfo.getTopic(), title);
             } else {
                 try {
-                    content = postWriterService.createNewBlogPost(keyword.getKeyword());
+                    content = postWriterService.createNewBlogPost(keyword.getKeyword(), title);
                 } catch (IOException e) {
                     System.out.println("First attempt failed, waiting 5 minutes before retry...");
                     try {
@@ -91,9 +96,8 @@ public class AutoContentWorkflowService {
             System.out.println("Selected category: " + category);
             Integer categoryId = wpCategoryClient.getCategoryId(category);
 
-            String title = generateTitle(keyword.getKeyword());
             String slug = generateUrlSlug(title);
-            String metaDescription = generateMetaDescription(keyword.getKeyword());
+            String metaDescription = generateMetaDescription(keyword.getKeyword(), content);
 
             // 4. Create and publish post
             BlogPost blogPost = new BlogPost(0, title, content, coverImage, category, categoryId, slug, metaDescription);
@@ -205,34 +209,118 @@ public class AutoContentWorkflowService {
     }
 
     private String generateTitle(String keyword) throws IOException {
-        String prompt = String.format(
-            "Create an SEO-optimized title for a blog post about '%s'.\n" +
-            "Requirements:\n" +
-            "- Include the main keyword\n" +
-            "- Be compelling and clear\n" +
-            "- Keep under 60 characters\n" +
-            "- No quotes or special characters\n\n" +
-            "Return only the title, nothing else.",
-            keyword
-        );
+        System.out.println("\n🎯 Starting title generation for: " + keyword);
         
-        return openAIClient.callOpenAI(prompt);
+        try {
+            // 1. Get SERP data
+            KoalaAIClient koalaClient = new KoalaAIClient();
+            String serpResults = koalaClient.getSerpResults(keyword);
+            System.out.println("📊 Retrieved SERP data");
+
+            // 2. Generate title options
+            String titleGenerationPrompt = String.format(
+                "Generate 10 compelling titles for an article about '%s'. " +
+                "Include a mix of how-to, list-based, question-based, and emotionally-driven titles. " +
+                "Ensure each title is under 60 characters for optimal SEO performance. " +
+                "Here is the SERP page that reflects the search intent of the keyword:\n\n%s",
+                keyword,
+                serpResults
+            );
+
+            String titleOptions = openAIClient.callOpenAI(titleGenerationPrompt);
+            System.out.println("📝 Generated title options:\n" + titleOptions);
+
+            // 3. Select best title
+            String selectionPrompt = String.format(
+                "Pick the best title for a blog post targeting '%s' from these options:\n\n%s\n\n" +
+                "Consider:\n" +
+                "- Search intent match\n" +
+                "- SEO optimization\n" +
+                "- Click-worthiness\n" +
+                "- Natural keyword inclusion\n\n" +
+                "Return only the chosen title, nothing else.",
+                keyword,
+                titleOptions
+            );
+
+            String finalTitle = openAIClient.callOpenAI(selectionPrompt).trim();
+            System.out.println("✅ Selected title: " + finalTitle);
+            
+            return finalTitle;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error generating title: " + e.getMessage());
+            
+            // Fallback to simpler title generation if the process fails
+            String fallbackPrompt = String.format(
+                "Create a simple, SEO-optimized title for '%s' under 60 characters.",
+                keyword
+            );
+            return openAIClient.callOpenAI(fallbackPrompt).trim();
+        }
     }
 
-    private String generateMetaDescription(String keyword) throws IOException {
-        String prompt = String.format(
-            "Create a meta description for a blog post about '%s'.\n" +
-            "Requirements:\n" +
-            "- Include the main keyword naturally\n" +
-            "- Be compelling and informative\n" +
-            "- Keep between 150-160 characters\n" +
-            "- Use active voice\n" +
-            "- End with a call to action\n\n" +
-            "Return only the meta description, nothing else.",
-            keyword
-        );
+    private String generateMetaDescription(String keyword, String content) throws IOException {
+        System.out.println("\n📝 Starting meta description generation...");
+        System.out.println("Keyword: " + keyword);
+        System.out.println("Content length: " + content.length() + " characters");
         
-        return openAIClient.callOpenAI(prompt);
+        try {
+            // Get first 300 words
+            String first300Words = content.split("\\s+", 301).length > 300 
+                ? String.join(" ", Arrays.copyOfRange(content.split("\\s+"), 0, 300))
+                : content;
+            System.out.println("\n1️⃣ Extracted first 300 words (" + first300Words.split("\\s+").length + " words)");
+
+            // Step 1: Extract the most valuable sentence
+            String extractPrompt = String.format(
+                "Return the most valuable sentence from the content that directly addresses the reader's search intent for the keyword: '%s'. " +
+                "This sentence should provide the most value if they could only read one sentence:\n\n%s",
+                keyword,
+                first300Words
+            );
+            System.out.println("2️⃣ Requesting best sentence from OpenAI...");
+            String bestSentence = openAIClient.callOpenAI(extractPrompt).trim();
+            System.out.println("✅ Best sentence: " + bestSentence);
+
+            // Step 2: Transform into optimized meta description
+            String optimizePrompt = String.format(
+                "Given this sentence, make it more concise while retaining the core idea. " +
+                "Simplify and strengthen the sentence for clarity, engagement, and focus on key benefits. " +
+                "The final sentence should be suitable for a meta description (119-135 characters). " +
+                "If it makes logical sense, and seamlessly integrates with the sentence, include a natural variation or a portion of the keyword: '%s' " +
+                "near the beginning, if not already present. If the keyword is a question or does not make sense to include, do not include the keyword at all.\n\n" +
+                "Base sentence: %s",
+                keyword,
+                bestSentence
+            );
+            
+            System.out.println("3️⃣ Optimizing meta description...");
+            String metaDescription = openAIClient.callGPT4(optimizePrompt).trim();
+            System.out.println("✅ Final meta description: " + metaDescription);
+            System.out.println("📊 Character count: " + metaDescription.length());
+            
+            return metaDescription;
+            
+        } catch (Exception e) {
+            System.out.println("\n⚠️ Primary meta description generation failed: " + e.getMessage());
+            System.out.println("Attempting fallback...");
+            
+            try {
+                String fallbackPrompt = String.format(
+                    "Create a meta description for a blog post about '%s'.",
+                    keyword
+                );
+                System.out.println("🔄 Using fallback prompt...");
+                String fallbackDescription = openAIClient.callOpenAI(fallbackPrompt).trim();
+                System.out.println("✅ Fallback meta description: " + fallbackDescription);
+                return fallbackDescription;
+                
+            } catch (Exception fallbackError) {
+                System.err.println("❌ Fallback meta description generation failed: " + fallbackError.getMessage());
+                return null;
+            }
+        }
     }
 
     private String generateUrlSlug(String title) throws IOException {
@@ -291,7 +379,7 @@ public class AutoContentWorkflowService {
         System.out.println("Keyword: " + keyword);
         
         // 1. Get SERP data
-        KoalaWriterClient koalaClient = new KoalaWriterClient();
+        KoalaAIClient koalaClient = new KoalaAIClient();
         String serpResults = koalaClient.getSerpResults(keyword);
         
         // 2. Analyze content type with OpenAI
@@ -321,7 +409,7 @@ public class AutoContentWorkflowService {
                 break;
             default:
                 System.out.println("📄 Creating standard blog post...");
-                articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+                articleResponse = koalaClient.createOptimizedBlogPost(keyword, "");
                 break;
         }
         
@@ -335,15 +423,15 @@ public class AutoContentWorkflowService {
         return content;
     }
 
-    private String generateKoalaContentWithRetry(String keyword, Long keywordId, String blogTopic) {
+    private String generateKoalaContentWithRetry(String keyword, Long keywordId, String blogTopic, String title) {
         System.out.println("\n🐨 Starting content workflow...");
         System.out.println("Keyword: " + keyword);
         
         try {
-            KoalaWriterClient koalaClient = new KoalaWriterClient();
+            KoalaAIClient koalaClient = new KoalaAIClient();
             
             System.out.println("📄 Creating standard blog post...");
-            JSONObject articleResponse = koalaClient.createOptimizedBlogPost(keyword);
+            JSONObject articleResponse = koalaClient.createOptimizedBlogPost(keyword, "");
             
             // Extract and format content
             String content = articleResponse.getJSONObject("output").getString("html");
@@ -366,17 +454,16 @@ public class AutoContentWorkflowService {
             System.out.println("\n🚀 Testing AutoContentWorkflowService...");
             
             AutoContentWorkflowService service = new AutoContentWorkflowService();
-            
-            // Get blog info for context
-            BlogRequest blogInfo = service.databaseService.getBlogInfo();
-            System.out.println("\n📚 Blog Info:");
-            System.out.println("Topic: " + blogInfo.getTopic());
-            System.out.println("Description: " + blogInfo.getDescription());
-            
-            // Process one keyword
-            System.out.println("\n🎯 Index Page testing...");
-            service.indexPageTesting();
-            
+
+            String title = service.generateTitle("how to start rucking");
+            System.out.println("Title: " + title);
+
+            String title2 = service.generateTitle("rucking accessories");
+            System.out.println("Title: " + title2);
+
+            String title3 = service.generateTitle("best rucking boots");
+            System.out.println("Title: " + title3);
+
         } catch (Exception e) {
             System.err.println("\n❌ Error during testing: " + e.getMessage());
             e.printStackTrace();

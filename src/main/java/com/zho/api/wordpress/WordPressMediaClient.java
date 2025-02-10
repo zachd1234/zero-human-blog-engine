@@ -543,33 +543,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
         try {
             WordPressMediaClient client = new WordPressMediaClient();
             
-            // Test updating site logo and icon
-            BufferedImage testImage = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
-            client.updateSiteLogo(testImage);
-            client.updateFavicon(testImage);
-            
-            // Get random image from Unsplash
-            UnsplashClient unsplashClient = new UnsplashClient();
-            List<Image> images = unsplashClient.searchImages("AI");
-            if (images.isEmpty()) {
-                throw new IOException("No images found");
-            }
-            Image testUnsplashImage = images.get(0);
-            
-            // Test updating simple image
-            client.updateSimpleImage(609, testUnsplashImage);
-            
-            // Test updating background image
-            client.updateBackgroundImage(609, "609_fc7adf-33", testUnsplashImage);
-            
-            // Test updating post cover images
-            int[] postIds = {23, 21, 1};  // Your post IDs
-            for (int postId : postIds) {
-                client.updatePostCoverImage(postId, testUnsplashImage);
-            }
-            
-            System.out.println("All media updates completed successfully!");
-            
+            client.updateBackgroundImage(609, "609_fc7adf-33", new Image("https://mbt.dsc.mybluehost.me/website_ef63468e/wp-content/uploads/2025/02/uploaded-image-173905056177617834042607726729122.jpg"));
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();

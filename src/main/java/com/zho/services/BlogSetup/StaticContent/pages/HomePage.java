@@ -218,14 +218,13 @@ public class HomePage implements StaticPage {
             
             // Create test BlogRequest
             BlogRequest testRequest = new BlogRequest(
-                "tennis blog",
-                "tennis for beginners"
+                "Y Combinator",
+                "Y Combinator News"
             );
             
             // Test updateHeadingAndSubheading
             System.out.println("Testing heading and subheading update...");
-            homePage.updateStaticContent(testRequest, null);
-            System.out.println("Heading and subheading updated successfully!");
+            
             
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());

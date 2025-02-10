@@ -11,12 +11,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-public class KoalaWriterClient {
+public class KoalaAIClient {
     private final String apiKey;
     private final OkHttpClient client;
     private static final String BASE_URL = "https://koala.sh/api";
 
-    public KoalaWriterClient() {
+    public KoalaAIClient() {
         this.apiKey = ConfigManager.getKoalaWriterKey();
         this.client = new OkHttpClient.Builder()
             .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
@@ -137,9 +137,10 @@ public class KoalaWriterClient {
         }
     }
 
-    public JSONObject createOptimizedBlogPost(String keyword) {
-        System.out.println("\n🐨 Creating optimized blog post with Koala Writer...");
+    public JSONObject createOptimizedBlogPost(String keyword, String title) {
+        System.out.println("\n�� Creating optimized blog post with Koala Writer...");
         System.out.println("Keyword: " + keyword);
+        System.out.println("Title: " + title);
         
         try {
             JSONObject requestBody = new JSONObject()
@@ -168,6 +169,7 @@ public class KoalaWriterClient {
                 .put("includeKeyTakeaways", true)
                 .put("readabilityMode", "8th_grade")
                 .put("autoPolish", true)
+                .put("extraTitlePrompt", "make the title exactly this: " + title)  // Add the extra title prompt
                 .put("polishSettings", new JSONObject()
                     .put("split-up-long-paragraphs", true)
                     .put("remove-mid-article-conclusions", true)
@@ -381,7 +383,7 @@ public class KoalaWriterClient {
     // Test method
     public static void main(String[] args) {
         try {
-            KoalaWriterClient client = new KoalaWriterClient();
+            KoalaAIClient client = new KoalaAIClient();
             // Print first few chars of API key to verify it's loadedç
             System.out.println("API Key starts with: " + client.apiKey.substring(0, 10) + "...");
             

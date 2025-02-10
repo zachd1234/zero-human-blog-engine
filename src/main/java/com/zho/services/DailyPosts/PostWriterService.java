@@ -17,7 +17,7 @@ public class PostWriterService {
         this.generatedSections = new ArrayList<>();
     }
 
-    public String createNewBlogPost(String keyword) throws IOException {
+    public String createNewBlogPost(String keyword, String title) throws IOException {
         currentOutline = generateOutline(keyword);
         System.out.println("Generated outline:\n" + currentOutline);
 

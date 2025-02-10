@@ -91,18 +91,17 @@ public class WordPressPostClient extends BaseWordPressClient {
     }
 
     public PostResponse publishPost(BlogPost blogPost) throws IOException {
-        // Create post request body
         Map<String, Object> postData = new HashMap<>();
         postData.put("title", blogPost.getTitle());
         postData.put("content", blogPost.getContent());
         postData.put("status", "publish");
         postData.put("slug", blogPost.getSlug());
 
-
-        JSONObject meta = new JSONObject();
-        meta.put("_yoast_wpseo_metadesc", blogPost.getMetaDescription());
-        postData.put("meta", meta);
-
+        // Use yoast_meta for both meta description and SEO title
+        JSONObject yoastMeta = new JSONObject();
+        yoastMeta.put("yoast_wpseo_metadesc", blogPost.getMetaDescription());
+        yoastMeta.put("yoast_wpseo_title", blogPost.getTitle()); // Using the same title, you might want to add a separate seoTitle field to BlogPost
+        postData.put("yoast_meta", yoastMeta);
 
         // Add category if ID exists
         int categoryId = blogPost.getCategoryId();
@@ -110,10 +109,7 @@ public class WordPressPostClient extends BaseWordPressClient {
             postData.put("categories", List.of(categoryId));
         }
 
-        // Make API request
         String response = makeRequest("POST", "posts", postData);
-        
-        // Extract URL and ID from response
         JSONObject jsonResponse = new JSONObject(response);
         return new PostResponse(
             jsonResponse.getString("link"),
@@ -157,17 +153,10 @@ public class WordPressPostClient extends BaseWordPressClient {
         try {
             WordPressPostClient client = new WordPressPostClient();
             
-            // Debug config using correct method name
-            System.out.println("WordPress URL from config: " + ConfigManager.getWpBaseUrl());
-            
-            BlogPost testPost = new BlogPost(-1,
-                "Test Post Title",
-                "This is a test post content.\n\nIt has multiple paragraphs.\n\nTesting the publishing functionality.", 
-                null, 
-                null);
-            
-            PostResponse postResponse = client.publishPost(testPost);
-            System.out.println("Successfully published post at: " + postResponse.getUrl());
+            BlogPost testPost = new BlogPost(1536, "test post title", "test post content", null, "test", 1, "test-post-title3", "this is a test meta. blah blah blah");
+            client.publishPost(testPost);
+            // Test updating both meta description and SEO title
+            System.out.println("Meta description and SEO title update attempted for post 1536");
             
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());

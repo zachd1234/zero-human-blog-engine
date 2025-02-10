@@ -306,7 +306,7 @@ public class OpenAIClient {
             // Test 1: Simple prompt
             System.out.println("Test 1: Simple prompt");
             String simplePrompt = "What is artificial intelligence?";
-            String response1 = client.callO3(simplePrompt);
+            String response1 = client.callOpenAI(simplePrompt);
             System.out.println("Response: " + response1);
             
            
