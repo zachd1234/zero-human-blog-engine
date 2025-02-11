@@ -59,12 +59,11 @@ public class CategoryService {
         List<Topic> topics = new ArrayList<>();
         Site currentSite = Site.getCurrentSite();
         
-        // Get the base URL from the current site and transform it to blog URL
-        String blogLink = currentSite.getUrl()
+        // Get the base URL from the current site and transform it to category URL
+        String baseUrl = currentSite.getUrl()
             .replace("/wp-json/wp/v2/", "")  // Remove the API path
             .replace("https://", "https://")  // Remove double https if any
-            .replaceAll("/$", "")  // Remove trailing slash if present
-            + "/blog/";  // Add blog path
+            .replaceAll("/$", "");  // Remove trailing slash if present
         
         String[] lines = response.split("\n");
 
@@ -78,10 +77,19 @@ public class CategoryService {
                     String[] words = title.split("\\s+");
                     title = words[0] + " " + words[1];
                 }
+                
+                // Create URL-friendly category slug
+                String categorySlug = title.toLowerCase()
+                    .replaceAll("\\s+", "-")     // Replace spaces with hyphens
+                    .replaceAll("[^a-z0-9-]", "") // Remove special characters
+                    .replaceAll("-+", "-");       // Replace multiple hyphens with single hyphen
+                
+                String categoryUrl = baseUrl + "/category/" + categorySlug + "/";
+                
                 topics.add(new Topic(
                     title,
                     parts[1].trim(),
-                    blogLink
+                    categoryUrl
                 ));
             }
         }
@@ -93,8 +101,8 @@ public class CategoryService {
         try {
             CategoryService service = new CategoryService();
             BlogRequest testRequest = new BlogRequest(
-                "rucking",
-                "all things rucking"
+                "Rucking",
+                "All Things Rucking. gear reviews, training tips, fun facts, and more"
             );
             
             service.setupSubtopics(testRequest);

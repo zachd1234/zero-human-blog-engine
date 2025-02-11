@@ -90,6 +90,7 @@ public class AutoContentWorkflowService {
             // 3. Generate image and get category
             String imageDescription = generateCoverImagePrompt(keyword.getKeyword());
             String imageUrl = generateCoverImage(imageDescription);
+            
             Image coverImage = new Image(imageUrl);
 
             String category = determineCategory(keyword.getKeyword());
@@ -241,7 +242,9 @@ public class AutoContentWorkflowService {
                 titleOptions
             );
 
-            String finalTitle = openAIClient.callOpenAI(selectionPrompt).trim();
+            String finalTitle = openAIClient.callOpenAI(selectionPrompt)
+                .trim()
+                .replaceAll("\\*+", "");
             System.out.println("✅ Selected title: " + finalTitle);
             
             return finalTitle;

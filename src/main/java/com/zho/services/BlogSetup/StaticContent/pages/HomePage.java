@@ -257,8 +257,7 @@ public class HomePage implements StaticPage {
             HomePage homePage = new HomePage(blockClient, openAIClient, mediaClient, databaseService);
             
 
-            System.out.println(homePage.getMetaDescriptionTemplate() + homePage.getTitleTemplate());
-            
+            blockClient.updateTopicsSection(DatabaseService.getTopics());
             // Test updateHeadingAndSubheading
             System.out.println("Testing heading and subheading update...");
             

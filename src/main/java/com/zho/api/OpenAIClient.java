@@ -23,6 +23,8 @@ public class OpenAIClient {
     private static final String GPT4_MODEL = "gpt-4";
     private static final String GPT4_MINI_MODEL = "gpt-4-0125-preview";
     private static final String O3_MINI_MODEL = "o3-mini-2025-01-31";
+    private static final String VISION_MODEL = "gpt-4o-mini";
+    private static final String VISION_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
     // Configuration constants
 
@@ -299,19 +301,73 @@ public class OpenAIClient {
         }
     }
 
+    /**
+     * Makes a call to OpenAI's vision model
+     * @param imageUrl - URL of the image to analyze
+     * @param prompt - The prompt/question about the image
+     * @param detail - Optional: "low" or "high" detail level (null for auto)
+     * @return String response from the model
+     */
+    public String callVisionModel(String imageUrl, String prompt, String detail) throws IOException {
+        // Build the message content array
+        JSONArray content = new JSONArray()
+            .put(new JSONObject()
+                .put("type", "text")
+                .put("text", prompt))
+            .put(new JSONObject()
+                .put("type", "image_url")
+                .put("image_url", new JSONObject()
+                    .put("url", imageUrl)
+                    .put("detail", detail != null ? detail : "auto")));
+
+        // Build the complete request
+        JSONObject requestBody = new JSONObject()
+            .put("model", VISION_MODEL)
+            .put("messages", new JSONArray()
+                .put(new JSONObject()
+                    .put("role", "user")
+                    .put("content", content)))
+            .put("max_tokens", 1000);
+
+        // Execute request
+        Request request = new Request.Builder()
+            .url(VISION_ENDPOINT)
+            .header("Authorization", "Bearer " + apiKey)
+            .header("Content-Type", "application/json")
+            .post(RequestBody.create(requestBody.toString(), MediaType.get("application/json")))
+            .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String errorBody = response.body() != null ? response.body().string() : "No error body";
+                throw new IOException("Vision API call failed: " + errorBody);
+            }
+
+            JSONObject responseJson = new JSONObject(response.body().string());
+            return responseJson.getJSONArray("choices")
+                .getJSONObject(0)
+                .getJSONObject("message")
+                .getString("content");
+
+        } catch (Exception e) {
+            System.err.println("Error in vision analysis: " + e.getMessage());
+            throw new IOException("Failed to process vision request", e);
+        }
+    }
+
+    // Convenience method with auto detail level
+    public String callVisionModel(String imageUrl, String prompt) throws IOException {
+        return callVisionModel(imageUrl, prompt, null);
+    }
+
     public static void main(String[] args) {
         try {
             OpenAIClient client = new OpenAIClient();
             
             // Test 1: Simple prompt
             System.out.println("Test 1: Simple prompt");
-            String simplePrompt = "What is artificial intelligence?";
-            String response1 = client.callOpenAI(simplePrompt);
-            System.out.println("Response: " + response1);
-            
-           
-            System.out.println("\nAll OpenAI tests completed successfully!");
-            
+            String result = client.callVisionModel("https://ruckquest.com/wp-content/uploads/2025/01/uploaded-image-17378355178476562370395749309153.jpg", "what do you see?");
+            System.out.println("Result: " + result);
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();

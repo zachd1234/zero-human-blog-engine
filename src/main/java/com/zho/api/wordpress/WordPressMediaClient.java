@@ -11,7 +11,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.json.JSONObject;
 import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import java.nio.charset.StandardCharsets;
-
+import com.zho.api.OpenAIClient;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -149,6 +149,42 @@ public class WordPressMediaClient extends BaseWordPressClient {
             return mediaId;
         }
     }
+
+    public int uploadImage(Image image, String altText, String title, String description) throws IOException, ParseException {
+        System.out.println("Original Unsplash URL: " + image.getUrl());
+        
+        String url = baseUrl + "media";
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        setAuthHeader(uploadRequest);
+        
+        // Download image data
+        byte[] imageData = downloadImage(image.getUrl());
+        System.out.println("Downloaded image size: " + imageData.length + " bytes");
+        
+        // Create multipart form data with metadata
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody(
+            "file",
+            imageData,
+            ContentType.IMAGE_JPEG,
+            "image-" + System.currentTimeMillis() + ".jpg"
+        );
+        builder.addTextBody("alt_text", altText);
+        builder.addTextBody("title", title);
+        builder.addTextBody("description", description);
+        
+        HttpEntity multipart = builder.build();
+        uploadRequest.setEntity(multipart);
+        
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("WordPress Media Response: " + responseBody);
+            JSONObject mediaResponse = new JSONObject(responseBody);
+            int mediaId = mediaResponse.getInt("id");
+            System.out.println("Uploaded image ID: " + mediaId);
+            return mediaId;
+        }
+    }
     
     private byte[] downloadImage(String imageUrl) throws IOException {
         HttpGet request = new HttpGet(URI.create(imageUrl));
@@ -247,9 +283,20 @@ public class WordPressMediaClient extends BaseWordPressClient {
             String responseBody = EntityUtils.toString(response.getEntity());
             JSONObject post = new JSONObject(responseBody);
             
+            // Generate metadata for the image
+            JSONObject metadata = generateImageMetadata(image.getUrl());
+            System.out.println("Generated metadata: " + metadata.toString(2));
+            
+            // Upload image with metadata
+            int mediaId = uploadImage(image, 
+                metadata.getString("alt_text"),
+                metadata.getString("title"),
+                metadata.getString("description")
+            );
+            
             // Create update payload with featured media
             JSONObject updatePayload = new JSONObject();
-            updatePayload.put("featured_media", uploadImage(image));
+            updatePayload.put("featured_media", mediaId);
             
             // Send update
             HttpPost updateRequest = new HttpPost(URI.create(url));
@@ -538,12 +585,57 @@ public class WordPressMediaClient extends BaseWordPressClient {
         }
     }
 
+    /**
+     * Generates metadata for WordPress media uploads using image analysis
+     * @param imageUrl - URL of the image to analyze
+     * @return JSONObject containing alt_text, title, description, and caption
+     */
+    private JSONObject generateImageMetadata(String imageUrl) throws IOException {
+        String prompt = "Analyze this image and provide SEO-optimized metadata for WordPress.\n\n" +
+                       "Return ONLY a JSON object with these fields:\n" +
+                       "- alt_text: Descriptive text for accessibility (under 125 chars)\n" +
+                       "- title: SEO-friendly title (under 60 chars)\n" +
+                       "- description: 2-3 detailed sentences about the image\n" +
+                       "- caption: Engaging text with possible call-to-action (under 155 chars)";
+
+        String response = new OpenAIClient().callVisionModel(imageUrl, prompt);
+        System.out.println("DEBUG: Raw API response: " + response);
+
+        try {
+            response = response.replaceAll("```json\\s*", "")
+                             .replaceAll("```", "")
+                             .replaceAll("(?m)^\\s*\"(\\w+)\":\\s*\"[^\"]*\"(?=\\s*,?\\s*$)\\s*\\n", "");
+
+            JSONObject metadata = new JSONObject(response.trim());
+            String captionText = metadata.optString("caption", "");
+            
+            return new JSONObject()
+                .put("alt_text", metadata.optString("alt_text", "Image"))
+                .put("title", metadata.optString("title", "Image"))
+                .put("description", metadata.optString("description", "An image"))
+                .put("caption", new JSONObject()
+                    .put("raw", captionText)
+                    .put("rendered", "<p>" + captionText + "</p>\n"));
+                
+        } catch (Exception e) {
+            System.err.println("Failed to parse JSON response: " + response);
+            return new JSONObject()
+                .put("alt_text", "Image")
+                .put("title", "Image")
+                .put("description", "An image")
+                .put("caption", new JSONObject()
+                    .put("raw", "")
+                    .put("rendered", ""));
+        }
+    }
+
     // Test method
     public static void main(String[] args) {
         try {
             WordPressMediaClient client = new WordPressMediaClient();
             
-            client.updateBackgroundImage(609, "609_fc7adf-33", new Image("https://mbt.dsc.mybluehost.me/website_ef63468e/wp-content/uploads/2025/02/uploaded-image-173905056177617834042607726729122.jpg"));
+
+            client.updatePostCoverImage(1592, new Image("https://ruckquest.com/wp-content/uploads/2025/01/uploaded-image-17378355178476562370395749309153.jpg"));
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();
