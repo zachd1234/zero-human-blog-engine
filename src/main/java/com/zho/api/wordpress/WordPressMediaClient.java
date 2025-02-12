@@ -150,7 +150,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
         }
     }
 
-    public int uploadImage(Image image, String altText, String title, String description) throws IOException, ParseException {
+    public int uploadImage(Image image, String altText, String title) throws IOException, ParseException {
         System.out.println("Original Unsplash URL: " + image.getUrl());
         
         String url = baseUrl + "media";
@@ -171,7 +171,6 @@ public class WordPressMediaClient extends BaseWordPressClient {
         );
         builder.addTextBody("alt_text", altText);
         builder.addTextBody("title", title);
-        builder.addTextBody("description", description);
         
         HttpEntity multipart = builder.build();
         uploadRequest.setEntity(multipart);
@@ -194,8 +193,32 @@ public class WordPressMediaClient extends BaseWordPressClient {
     }
 
     public void updateSimpleImage(int pageId, Image image) throws IOException, ParseException {
-        String url = baseUrl + "pages/" + pageId + "?context=edit";
+        // First, upload the image and get metadata
+        JSONObject metadata = generateImageMetadata(image.getUrl());
+        System.out.println("Generated metadata: " + metadata.toString());
+        
+        int mediaId = uploadImage(image, 
+            metadata.getString("alt_text"),
+            metadata.getString("title"));
+        System.out.println("Uploaded media ID: " + mediaId);
+        
+        // Get the WordPress media URL from the upload
+        String url = baseUrl + "media/" + mediaId;
+        System.out.println("Getting media URL from: " + url);
         HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        String uploadedImageUrl;
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject mediaInfo = new JSONObject(responseBody);
+            uploadedImageUrl = mediaInfo.getString("source_url");
+            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
+        }
+        
+        // Update the page content
+        url = baseUrl + "pages/" + pageId + "?context=edit";
+        System.out.println("Getting page content from: " + url);
+        getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
         
         try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
@@ -207,12 +230,16 @@ public class WordPressMediaClient extends BaseWordPressClient {
             
             // Find and replace the image block
             String imagePattern = "<!-- wp:image \\{[^}]*\\}[\\s\\S]*?<!-- /wp:image -->";
-            String newImage = "<!-- wp:image {\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n" +
-                    "<figure class=\"wp-block-image size-large\">" +
-                    "<img src=\"" + image.getUrl() + "\" " +
-                    "alt=\"" + image.getDescription() + "\"/>" +
-                    "</figure>\n" +
-                    "<!-- /wp:image -->";
+            String newImage = String.format(
+                "<!-- wp:image {\"id\":%d,\"sizeSlug\":\"large\",\"linkDestination\":\"none\"} -->\n" +
+                "<figure class=\"wp-block-image size-large\">" +
+                "<img src=\"%s\" alt=\"%s\" class=\"wp-image-%d\"/></figure>\n" +
+                "<!-- /wp:image -->",
+                mediaId,
+                uploadedImageUrl,
+                metadata.getString("alt_text"),
+                mediaId
+            );
             
             String updatedContent = currentContent.replaceAll(imagePattern, newImage);
             
@@ -227,13 +254,41 @@ public class WordPressMediaClient extends BaseWordPressClient {
             try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
                 int statusCode = updateResponse.getCode();
                 System.out.println("Update status for page " + pageId + ": " + statusCode);
+                if (statusCode >= 300) {
+                    String errorResponse = EntityUtils.toString(updateResponse.getEntity());
+                    System.err.println("Error response: " + errorResponse);
+                }
             }
         }
     }
 
     public void updateBackgroundImage(int pageId, String blockId, Image image) throws IOException, ParseException {
-        String url = baseUrl + "pages/" + pageId + "?context=edit";
+        // First, upload the image and get metadata
+        JSONObject metadata = generateImageMetadata(image.getUrl());
+        System.out.println("Generated metadata: " + metadata.toString());
+        
+        int mediaId = uploadImage(image, 
+            metadata.getString("alt_text"),
+            metadata.getString("title"));
+        System.out.println("Uploaded media ID: " + mediaId);
+        
+        // Get the WordPress media URL from the upload
+        String url = baseUrl + "media/" + mediaId;
+        System.out.println("Getting media URL from: " + url);
         HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        String uploadedImageUrl;
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject mediaInfo = new JSONObject(responseBody);
+            uploadedImageUrl = mediaInfo.getString("source_url");
+            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
+        }
+        
+        // Update the page content
+        url = baseUrl + "pages/" + pageId + "?context=edit";
+        System.out.println("Getting page content from: " + url);
+        getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
         
         try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
@@ -250,7 +305,9 @@ public class WordPressMediaClient extends BaseWordPressClient {
                     "\"columns\":1,\"colLayout\":\"equal\"," +
                     "\"currentOverlayTab\":\"gradient\"," +
                     "\"maxWidth\":900," +
-                    "\"bgImg\":\"" + image.getUrl() + "\"," +
+                    "\"bgImg\":\"" + uploadedImageUrl + "\"," +
+                    "\"bgImgID\":" + mediaId + "," +
+                    "\"bgImgAlt\":\"" + metadata.getString("alt_text") + "\"," +
                     "\"tabletPadding\":[60,30,60,30]," +
                     "\"overlayGradient\":\"linear-gradient(180deg,var(--global-palette9) 43%,var(--global-palette3) 81%)\"," +
                     "\"padding\":[100,20,101,20]," +
@@ -270,6 +327,10 @@ public class WordPressMediaClient extends BaseWordPressClient {
             try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
                 int statusCode = updateResponse.getCode();
                 System.out.println("Update status for page " + pageId + " background: " + statusCode);
+                if (statusCode >= 300) {
+                    String errorResponse = EntityUtils.toString(updateResponse.getEntity());
+                    System.err.println("Error response: " + errorResponse);
+                }
             }
         }
     }
@@ -290,9 +351,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
             // Upload image with metadata
             int mediaId = uploadImage(image, 
                 metadata.getString("alt_text"),
-                metadata.getString("title"),
-                metadata.getString("description")
-            );
+                metadata.getString("title"));
             
             // Create update payload with featured media
             JSONObject updatePayload = new JSONObject();
@@ -312,8 +371,32 @@ public class WordPressMediaClient extends BaseWordPressClient {
     }
 
     public void updateInfoboxImage(int pageId, String infoboxId, Image image) throws IOException, ParseException {
-        String url = baseUrl + "pages/" + pageId + "?context=edit";
+        // First, upload the image and get metadata
+        JSONObject metadata = generateImageMetadata(image.getUrl());
+        System.out.println("Generated metadata: " + metadata.toString());
+        
+        int mediaId = uploadImage(image, 
+            metadata.getString("alt_text"),
+            metadata.getString("title"));
+        System.out.println("Uploaded media ID: " + mediaId);
+        
+        // Get the WordPress media URL from the upload
+        String url = baseUrl + "media/" + mediaId;
+        System.out.println("Getting media URL from: " + url);
         HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        String uploadedImageUrl;
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject mediaInfo = new JSONObject(responseBody);
+            uploadedImageUrl = mediaInfo.getString("source_url");
+            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
+        }
+        
+        // Update the page content
+        url = baseUrl + "pages/" + pageId + "?context=edit";
+        System.out.println("Getting page content from: " + url);
+        getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
         
         try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
@@ -334,8 +417,9 @@ public class WordPressMediaClient extends BaseWordPressClient {
                     "\"containerPadding\":[0,0,0,0]," +
                     "\"mediaType\":\"image\"," +
                     "\"mediaImage\":[{" +
-                    "\"url\":\"" + image.getUrl() + "\"," +
-                    "\"alt\":\"" + image.getDescription() + "\"," +
+                    "\"id\":" + mediaId + "," +
+                    "\"url\":\"" + uploadedImageUrl + "\"," +
+                    "\"alt\":\"" + metadata.getString("alt_text") + "\"," +
                     "\"maxWidth\":493," +
                     "\"hoverAnimation\":\"none\"" +
                     "}]," +
@@ -351,7 +435,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
                     "}]} -->\n" +
                     "<div class=\"kt-info-box" + infoboxId + " wp-block-kadence-infobox\">" +
                     "<div class=\"kt-blocks-info-box-media-container\"><div class=\"kt-blocks-info-box-media\">" +
-                    "<img src=\"" + image.getUrl() + "\" alt=\"" + image.getDescription() + "\"/>" +
+                    "<img src=\"" + uploadedImageUrl + "\" alt=\"" + metadata.getString("alt_text") + "\" class=\"wp-image-" + mediaId + "\"/>" +
                     "</div></div></div>\n" +
                     "<!-- /wp:kadence/infobox -->";
             
@@ -368,6 +452,10 @@ public class WordPressMediaClient extends BaseWordPressClient {
             try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
                 int statusCode = updateResponse.getCode();
                 System.out.println("Update status for page " + pageId + " infobox: " + statusCode);
+                if (statusCode >= 300) {
+                    String errorResponse = EntityUtils.toString(updateResponse.getEntity());
+                    System.err.println("Error response: " + errorResponse);
+                }
             }
         }
     }
@@ -383,8 +471,32 @@ public class WordPressMediaClient extends BaseWordPressClient {
     }
 
     public void updateColumnImage(int pageId, String columnId, Image image) throws IOException, ParseException {
-        String url = baseUrl + "pages/" + pageId + "?context=edit";
+        // First, upload the image and get metadata
+        JSONObject metadata = generateImageMetadata(image.getUrl());
+        System.out.println("Generated metadata: " + metadata.toString());
+        
+        int mediaId = uploadImage(image, 
+            metadata.getString("alt_text"),
+            metadata.getString("title"));
+        System.out.println("Uploaded media ID: " + mediaId);
+        
+        // Get the WordPress media URL from the upload
+        String url = baseUrl + "media/" + mediaId;
+        System.out.println("Getting media URL from: " + url);
         HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        String uploadedImageUrl;
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject mediaInfo = new JSONObject(responseBody);
+            uploadedImageUrl = mediaInfo.getString("source_url");
+            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
+        }
+        
+        // Update the page content
+        url = baseUrl + "pages/" + pageId + "?context=edit";
+        System.out.println("Getting page content from: " + url);
+        getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
         
         try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
@@ -411,14 +523,20 @@ public class WordPressMediaClient extends BaseWordPressClient {
                 
                 if (matcher.find()) {
                     // Create new image block with proper WordPress format
-                    String newImage = "<!-- wp:image {\"width\":\"550px\",\"height\":\"auto\",\"aspectRatio\":\"1\",\"sizeSlug\":\"large\"} -->\n" +
-                            "<figure class=\"wp-block-image size-large is-resized\">" +
-                            "<img src=\"" + image.getUrl() + "\" " +
-                            "alt=\"" + image.getDescription() + "\" " +
-                            "class=\"wp-image-1107\" " +  // Add WordPress image class
-                            "style=\"aspect-ratio:1;width:550px;height:auto\"/>" +
-                            "</figure>\n" +
-                            "<!-- /wp:image -->";
+                    String newImage = String.format(
+                        "<!-- wp:image {\"id\":%d,\"width\":\"550px\",\"height\":\"auto\",\"aspectRatio\":\"1\",\"sizeSlug\":\"large\"} -->\n" +
+                        "<figure class=\"wp-block-image size-large is-resized\">" +
+                        "<img src=\"%s\" " +
+                        "alt=\"%s\" " +
+                        "class=\"wp-image-%d\" " +
+                        "style=\"aspect-ratio:1;width:550px;height:auto\"/>" +
+                        "</figure>\n" +
+                        "<!-- /wp:image -->",
+                        mediaId,
+                        uploadedImageUrl,
+                        metadata.getString("alt_text"),
+                        mediaId
+                    );
                     
                     columnContent = columnContent.substring(0, matcher.start()) + 
                                   newImage + 
@@ -439,11 +557,14 @@ public class WordPressMediaClient extends BaseWordPressClient {
                 try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
                     int statusCode = updateResponse.getCode();
                     System.out.println("Update status for page " + pageId + " column image: " + statusCode);
+                    if (statusCode >= 300) {
+                        String errorResponse = EntityUtils.toString(updateResponse.getEntity());
+                        System.err.println("Error response: " + errorResponse);
+                    }
                 }
             }
         }
     }
-
     public String uploadMediaFromFile(String localFilePath, String title) throws IOException {
         // Debug prints at start
         System.out.println("DEBUG: Starting media upload");
@@ -594,9 +715,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
         String prompt = "Analyze this image and provide SEO-optimized metadata for WordPress.\n\n" +
                        "Return ONLY a JSON object with these fields:\n" +
                        "- alt_text: Descriptive text for accessibility (under 125 chars)\n" +
-                       "- title: SEO-friendly title (under 60 chars)\n" +
-                       "- description: 2-3 detailed sentences about the image\n" +
-                       "- caption: Engaging text with possible call-to-action (under 155 chars)";
+                       "- title: SEO-friendly title (under 60 chars)";
 
         String response = new OpenAIClient().callVisionModel(imageUrl, prompt);
         System.out.println("DEBUG: Raw API response: " + response);
@@ -607,25 +726,16 @@ public class WordPressMediaClient extends BaseWordPressClient {
                              .replaceAll("(?m)^\\s*\"(\\w+)\":\\s*\"[^\"]*\"(?=\\s*,?\\s*$)\\s*\\n", "");
 
             JSONObject metadata = new JSONObject(response.trim());
-            String captionText = metadata.optString("caption", "");
             
             return new JSONObject()
                 .put("alt_text", metadata.optString("alt_text", "Image"))
-                .put("title", metadata.optString("title", "Image"))
-                .put("description", metadata.optString("description", "An image"))
-                .put("caption", new JSONObject()
-                    .put("raw", captionText)
-                    .put("rendered", "<p>" + captionText + "</p>\n"));
+                .put("title", metadata.optString("title", "Image"));
                 
         } catch (Exception e) {
             System.err.println("Failed to parse JSON response: " + response);
             return new JSONObject()
                 .put("alt_text", "Image")
-                .put("title", "Image")
-                .put("description", "An image")
-                .put("caption", new JSONObject()
-                    .put("raw", "")
-                    .put("rendered", ""));
+                .put("title", "Image");
         }
     }
 
@@ -635,7 +745,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
             WordPressMediaClient client = new WordPressMediaClient();
             
 
-            client.updatePostCoverImage(1592, new Image("https://ruckquest.com/wp-content/uploads/2025/01/uploaded-image-17378355178476562370395749309153.jpg"));
+            client.updateColumnImage(318, "318_8978a8-3e", new Image("https://mbt.dsc.mybluehost.me/wp-content/uploads/2025/02/author_French_Poodles.jpg"));
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();
