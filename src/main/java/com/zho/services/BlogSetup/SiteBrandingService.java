@@ -59,18 +59,18 @@ public class SiteBrandingService {
      
         mediaClient.updateSiteName(blogName);
         mediaClient.updateSiteTagline(tagline);
-        mediaClient.updateFavicon(icon);
+        mediaClient.updateFavicon(icon, blogName);
 
         //logo. AI first, then fallback to simple 
         try {
             String logoUrl = recraftClient.generateAILogo(blogName, request.getDescription());
-            mediaClient.updateSiteLogoFromUrl(logoUrl);
+            mediaClient.updateSiteLogoFromUrl(logoUrl, blogName);
 
         } catch (IOException  e) {
             System.err.println("Error during AI logo download: " + e.getMessage());
             BufferedImage logo = generateSimpleLogo(icon, blogName);
             mediaClient.updateSiteLogo(logo);
-            mediaClient.updateFavicon(icon);
+            mediaClient.updateFavicon(icon, blogName);
         }
     }
 

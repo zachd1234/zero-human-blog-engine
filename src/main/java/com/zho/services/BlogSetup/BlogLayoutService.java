@@ -165,9 +165,9 @@ public class BlogLayoutService {
         }
     }
 
-    private String generateAuthorImagePrompt(String topic) throws IOException {
+    private String generateAuthorImagePrompt(String topic, String authorName) throws IOException {
         String prompt = String.format(
-            "For a blog about %s, create a hyper-realistic headshot of the most stereotypical person who could be the head blog writer. " +
+            "For a blog about %s, create a hyper-realistic headshot of the most stereotypical person who could be the head blog writer. The person's name is %s." +
             "The focus should be on a close-up of their face and shoulders. Include these elements:\n" +
             "• Age, build, and complexion\n" +
             "• Personal style and clothing (emphasize what would be visible in a headshot)\n" +
@@ -175,7 +175,8 @@ public class BlogLayoutService {
             "• Lighting and atmosphere focused on the face (e.g., soft, natural lighting)\n" +
             "• Small, realistic details like makeup, skin textures, or freckles that add authenticity\n\n" +
             "Keep the description under 500 characters.",
-            topic
+            topic,
+            authorName
         );
         
         return openAIClient.callGPT4(prompt);
@@ -183,23 +184,16 @@ public class BlogLayoutService {
 
     private String generateAndUploadAuthorImage(BlogRequest blogRequest, String authorName) throws IOException {
         // Generate the image description
-        String imageDescription = generateAuthorImagePrompt(blogRequest.getTopic() + ". The image exhibits a high level of realism, reminiscent of modern portrait photography, in 4K UHD quality, suitable for a profile picture or official use");
+        String imageDescription = generateAuthorImagePrompt(blogRequest.getTopic() + ". The image exhibits a high level of realism, reminiscent of modern portrait photography, in 4K UHD quality, suitable for a profile picture or official use", authorName);
         
-        // Generate the image
-        String imageUrl = getImgAIClient.generateImage(
+        // Generate and return only the image URL from GetImgAI
+        return getImgAIClient.generateImage(
             imageDescription,
             1024,
             1024,
             4,
             null
         );
-        
-        // Download image locally
-        String localImagePath = "/Users/zachderhake/Desktop/author_" + authorName.replaceAll("\\s+", "_") + ".jpg";
-        downloadImage(imageUrl, localImagePath);
-        
-        // Upload to WordPress
-        return mediaClient.uploadMediaFromFile(localImagePath, "Author Image - " + authorName);
     }
 
     private void downloadImage(String imageUrl, String destinationPath) throws IOException {

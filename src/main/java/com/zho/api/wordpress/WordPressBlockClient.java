@@ -15,6 +15,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.HttpRequest;
 import com.zho.model.Topic;
 import com.zho.services.DatabaseService;
+import com.zho.model.Image;
 
 import java.util.List;
 import org.json.JSONArray;
@@ -588,15 +589,29 @@ public class WordPressBlockClient extends BaseWordPressClient {
     }
 
     public void updateAuthorBlock(String authorName, String jobTitle, String authorBio, String imageUrl) throws IOException, ParseException {
+        // First, process the image through WordPress Media Client
+        WordPressMediaClient mediaClient = new WordPressMediaClient();
+        
+        // Split author name for metadata
+        String[] nameParts = authorName.split(" ");
+        String firstName = nameParts[0];
+        String lastName = nameParts.length > 1 ? nameParts[1] : "";
+        
+        // Upload image and get WordPress media URL
+        Image image = new Image(imageUrl);
+        int mediaId = mediaClient.uploadAuthorBlock(0, "author-image", image, firstName, lastName);
+        
+        // Get the WordPress media URL
+        String uploadedImageUrl = mediaClient.getMediaUrl(mediaId);
+        
         int blockId = getAuthorBlockId();
         String url = baseUrl + "blocks/" + blockId;
         
         String siteTitle = getSiteTitle();
         String siteUrl = baseUrl.replaceAll("wp-json/wp/v2/$", "");
+        String authorUrl = siteUrl + "author/" + firstName.toLowerCase();
         
-        // Generate the author URL using the first name in lowercase
-        String authorUrl = siteUrl + "author/" + authorName.split(" ")[0].toLowerCase();
-        
+        // Rest of the existing method remains the same, but use uploadedImageUrl instead of imageUrl
         String content = String.format(
             "<!-- wp:kadence/rowlayout {\"uniqueID\":\"1458_35c24b-2c\",\"columns\":1,\"colLayout\":\"equal\",\"kbVersion\":2} -->\n" +
             "<!-- wp:kadence/column {\"uniqueID\":\"1458_21c883-b1\",\"kbVersion\":2} -->\n" +
@@ -630,7 +645,7 @@ public class WordPressBlockClient extends BaseWordPressClient {
             "<!-- /wp:kadence/rowlayout --></div></div>\n" +
             "<!-- /wp:kadence/column -->\n" +
             "<!-- /wp:kadence/rowlayout -->",
-            imageUrl, authorName, jobTitle, authorBio, authorUrl
+            uploadedImageUrl, authorName, jobTitle, authorBio, authorUrl
         );
 
         JSONObject updatePayload = new JSONObject()

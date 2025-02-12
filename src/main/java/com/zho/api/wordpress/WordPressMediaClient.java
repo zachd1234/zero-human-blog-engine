@@ -21,6 +21,7 @@ import java.net.URL;
 import java.io.InputStream;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Base64;
 
 import com.zho.model.Image;
 import com.zho.api.UnsplashClient;
@@ -53,35 +54,52 @@ public class WordPressMediaClient extends BaseWordPressClient {
         uploadRequest.setEntity(multipart);
         setAuthHeader(uploadRequest);
 
-        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
+        try (CloseableHttpResponse uploadResponse = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(uploadResponse.getEntity());
             JSONObject json = new JSONObject(responseBody);
             int mediaId = json.getInt("id");
             updateSiteSetting("site_logo", String.valueOf(mediaId));
         }
     }
 
-    public void updateFavicon(BufferedImage icon) throws IOException, ParseException {
+    public void updateFavicon(BufferedImage icon, String siteName) throws IOException, ParseException {
+        // Generate metadata using AI vision
+        String prompt = "Analyze this favicon/icon image and provide a brief description.\n\n" +
+                       "Return ONLY a JSON object with this field:\n" +
+                       "- description: Brief description of the favicon (under 100 chars)";
+        
+        // Convert BufferedImage to Base64 for AI vision
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageIO.write(icon, "png", baos);
         byte[] imageBytes = baos.toByteArray();
-
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+        String dataUrl = "data:image/png;base64," + base64Image;
+        
+        String response = new OpenAIClient().callVisionModel(dataUrl, prompt);
+        JSONObject aiResponse = new JSONObject(response.replaceAll("```json\\s*|```", "").trim());
+        String description = aiResponse.optString("description", "Website favicon");
+        
+        // Format title
+        String title = siteName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").replaceAll("\\s+", "-") + "-favicon";
+        
         // Generate unique filename with timestamp
         String timestamp = String.valueOf(System.currentTimeMillis());
-        String filename = "favicon-" + timestamp + ".png";
-
+        String filename = title + "-" + timestamp + ".png";
+        
         String url = baseUrl + "media";
         
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.addBinaryBody("file", imageBytes, ContentType.IMAGE_PNG, filename);
+        builder.addTextBody("title", title);
+        builder.addTextBody("alt_text", description);
         HttpEntity multipart = builder.build();
 
         HttpPost uploadRequest = new HttpPost(URI.create(url));
         uploadRequest.setEntity(multipart);
         setAuthHeader(uploadRequest);
 
-        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
+        try (CloseableHttpResponse uploadResponse = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(uploadResponse.getEntity());
             JSONObject json = new JSONObject(responseBody);
             int mediaId = json.getInt("id");
             updateSiteSetting("site_icon", String.valueOf(mediaId));
@@ -90,6 +108,7 @@ public class WordPressMediaClient extends BaseWordPressClient {
 
     private void updateSiteSetting(String setting, String value) throws IOException, ParseException {
         String url = baseUrl + "settings";
+        System.out.println("Updating site setting: " + setting + " to value: " + value);
         
         JSONObject jsonPayload = new JSONObject();
         jsonPayload.put(setting, value);
@@ -99,7 +118,16 @@ public class WordPressMediaClient extends BaseWordPressClient {
         request.setEntity(new StringEntity(jsonPayload.toString(), StandardCharsets.UTF_8));
         request.setHeader("Content-Type", "application/json");
 
-        executeRequest(request, "Setting");
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            int statusCode = response.getCode();
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("Update setting response code: " + statusCode);
+            System.out.println("Update setting response: " + responseBody);
+            
+            if (statusCode >= 300) {
+                throw new IOException("Failed to update " + setting + ". Status: " + statusCode + ", Response: " + responseBody);
+            }
+        }
     }
 
     private void executeRequest(HttpPost request, String type) throws IOException, ParseException {
@@ -114,6 +142,41 @@ public class WordPressMediaClient extends BaseWordPressClient {
                 System.err.println("Failed to update " + type + ". Status Code: " + statusCode);
                 System.err.println("Response: " + responseString);
             }
+        }
+    }
+
+    public int uploadImage(Image image, String altText, String title) throws IOException, ParseException {
+        System.out.println("Original Unsplash URL: " + image.getUrl());
+        
+        String url = baseUrl + "media";
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        setAuthHeader(uploadRequest);
+        
+        // Download image data from Unsplash URL first
+        byte[] imageData = downloadImage(image.getUrl());
+        System.out.println("Downloaded image size: " + imageData.length + " bytes");
+        
+        // Create multipart form data
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody(
+            "file",
+            imageData,
+            ContentType.IMAGE_JPEG,
+            "image-" + System.currentTimeMillis() + ".jpg"
+        );
+        builder.addTextBody("alt_text", altText);
+        builder.addTextBody("title", title);
+        
+        HttpEntity multipart = builder.build();
+        uploadRequest.setEntity(multipart);
+        
+        try (CloseableHttpResponse uploadResponse = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(uploadResponse.getEntity());
+            System.out.println("WordPress Media Response: " + responseBody);
+            JSONObject mediaResponse = new JSONObject(responseBody);
+            int mediaId = mediaResponse.getInt("id");
+            System.out.println("Uploaded image ID: " + mediaId);
+            return mediaId;
         }
     }
 
@@ -140,43 +203,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         HttpEntity multipart = builder.build();
         uploadRequest.setEntity(multipart);
         
-        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            System.out.println("WordPress Media Response: " + responseBody);
-            JSONObject mediaResponse = new JSONObject(responseBody);
-            int mediaId = mediaResponse.getInt("id");
-            System.out.println("Uploaded image ID: " + mediaId);
-            return mediaId;
-        }
-    }
-
-    public int uploadImage(Image image, String altText, String title) throws IOException, ParseException {
-        System.out.println("Original Unsplash URL: " + image.getUrl());
-        
-        String url = baseUrl + "media";
-        HttpPost uploadRequest = new HttpPost(URI.create(url));
-        setAuthHeader(uploadRequest);
-        
-        // Download image data
-        byte[] imageData = downloadImage(image.getUrl());
-        System.out.println("Downloaded image size: " + imageData.length + " bytes");
-        
-        // Create multipart form data with metadata
-        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-        builder.addBinaryBody(
-            "file",
-            imageData,
-            ContentType.IMAGE_JPEG,
-            "image-" + System.currentTimeMillis() + ".jpg"
-        );
-        builder.addTextBody("alt_text", altText);
-        builder.addTextBody("title", title);
-        
-        HttpEntity multipart = builder.build();
-        uploadRequest.setEntity(multipart);
-        
-        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
+        try (CloseableHttpResponse uploadResponse = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(uploadResponse.getEntity());
             System.out.println("WordPress Media Response: " + responseBody);
             JSONObject mediaResponse = new JSONObject(responseBody);
             int mediaId = mediaResponse.getInt("id");
@@ -199,7 +227,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         
         int mediaId = uploadImage(image, 
             metadata.getString("alt_text"),
-            metadata.getString("title"));
+            metadata.getString("title")
+        );
         System.out.println("Uploaded media ID: " + mediaId);
         
         // Get the WordPress media URL from the upload
@@ -269,7 +298,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         
         int mediaId = uploadImage(image, 
             metadata.getString("alt_text"),
-            metadata.getString("title"));
+            metadata.getString("title")
+        );
         System.out.println("Uploaded media ID: " + mediaId);
         
         // Get the WordPress media URL from the upload
@@ -277,14 +307,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         System.out.println("Getting media URL from: " + url);
         HttpGet getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
-        String uploadedImageUrl;
-        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            JSONObject mediaInfo = new JSONObject(responseBody);
-            uploadedImageUrl = mediaInfo.getString("source_url");
-            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
-        }
-        
+
+        String uploadedImageUrl = getMediaUrl(mediaId);
         // Update the page content
         url = baseUrl + "pages/" + pageId + "?context=edit";
         System.out.println("Getting page content from: " + url);
@@ -351,7 +375,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
             // Upload image with metadata
             int mediaId = uploadImage(image, 
                 metadata.getString("alt_text"),
-                metadata.getString("title"));
+                metadata.getString("title")
+            );
             
             // Create update payload with featured media
             JSONObject updatePayload = new JSONObject();
@@ -377,7 +402,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         
         int mediaId = uploadImage(image, 
             metadata.getString("alt_text"),
-            metadata.getString("title"));
+            metadata.getString("title")
+        );
         System.out.println("Uploaded media ID: " + mediaId);
         
         // Get the WordPress media URL from the upload
@@ -477,7 +503,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         
         int mediaId = uploadImage(image, 
             metadata.getString("alt_text"),
-            metadata.getString("title"));
+            metadata.getString("title")
+        );
         System.out.println("Uploaded media ID: " + mediaId);
         
         // Get the WordPress media URL from the upload
@@ -485,13 +512,8 @@ public class WordPressMediaClient extends BaseWordPressClient {
         System.out.println("Getting media URL from: " + url);
         HttpGet getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
-        String uploadedImageUrl;
-        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            JSONObject mediaInfo = new JSONObject(responseBody);
-            uploadedImageUrl = mediaInfo.getString("source_url");
-            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
-        }
+        
+        String uploadedImageUrl = getMediaUrl(mediaId);
         
         // Update the page content
         url = baseUrl + "pages/" + pageId + "?context=edit";
@@ -654,52 +676,76 @@ public class WordPressMediaClient extends BaseWordPressClient {
         }
     }
 
-    public void updateSiteLogoFromUrl(String imageUrl) throws IOException, ParseException {
-        // Download the image from URL
-        byte[] imageBytes = downloadImage(imageUrl);
+    public void updateSiteLogoFromUrl(String imageUrl, String siteName) throws IOException, ParseException {
+        // Generate metadata using AI vision
+        String prompt = "Analyze this logo image and provide a brief description.\n\n" +
+                       "Return ONLY a JSON object with this field:\n" +
+                       "- description: Brief description of the logo (under 100 chars)";
         
-        // Generate unique filename with timestamp
+        String response = new OpenAIClient().callVisionModel(imageUrl, prompt);
+        JSONObject aiResponse = new JSONObject(response.replaceAll("```json\\s*|```", "").trim());
+        String description = aiResponse.optString("description", "Company logo");
+        
+        // Format title and alt text
+        String title = siteName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").replaceAll("\\s+", "-") + "-logo";        
+       
+        // Download and upload the image
+        byte[] imageBytes = downloadImage(imageUrl);
         String timestamp = String.valueOf(System.currentTimeMillis());
-        String filename = "site-logo-" + timestamp + ".png";
+        String filename = title + "-" + timestamp + ".png";
         
         String url = baseUrl + "media";
         
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.addBinaryBody("file", imageBytes, ContentType.IMAGE_PNG, filename);
+        builder.addTextBody("title", title);
+        builder.addTextBody("alt_text", description);
         HttpEntity multipart = builder.build();
 
         HttpPost uploadRequest = new HttpPost(URI.create(url));
         uploadRequest.setEntity(multipart);
         setAuthHeader(uploadRequest);
 
-        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
+        try (CloseableHttpResponse uploadResponse = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(uploadResponse.getEntity());
             JSONObject json = new JSONObject(responseBody);
             int mediaId = json.getInt("id");
             updateSiteSetting("site_logo", String.valueOf(mediaId));
         }
     }
 
-    public void updateFaviconFromUrl(String imageUrl) throws IOException, ParseException {
-        // Download the image from URL
-        byte[] imageBytes = downloadImage(imageUrl);
+    public void updateFaviconFromUrl(String imageUrl, String siteName) throws IOException, ParseException {
+        // Generate metadata using AI vision
+        String prompt = "Analyze this favicon/icon image and provide a brief description.\n\n" +
+                       "Return ONLY a JSON object with this field:\n" +
+                       "- description: Brief description of the favicon (under 100 chars)";
         
-        // Generate unique filename with timestamp
+        String response = new OpenAIClient().callVisionModel(imageUrl, prompt);
+        JSONObject aiResponse = new JSONObject(response.replaceAll("```json\\s*|```", "").trim());
+        String description = aiResponse.optString("description", "Website favicon");
+        
+        // Format title and alt text
+        String title = siteName.toLowerCase().replaceAll("[^a-z0-9\\s]", "").replaceAll("\\s+", "-") + "-favicon";
+        
+        // Download and upload the image
+        byte[] imageBytes = downloadImage(imageUrl);
         String timestamp = String.valueOf(System.currentTimeMillis());
-        String filename = "favicon-" + timestamp + ".png";
+        String filename = title + "-" + timestamp + ".png";
         
         String url = baseUrl + "media";
         
         MultipartEntityBuilder builder = MultipartEntityBuilder.create();
         builder.addBinaryBody("file", imageBytes, ContentType.IMAGE_PNG, filename);
+        builder.addTextBody("title", title);
+        builder.addTextBody("alt_text", description);
         HttpEntity multipart = builder.build();
 
         HttpPost uploadRequest = new HttpPost(URI.create(url));
         uploadRequest.setEntity(multipart);
         setAuthHeader(uploadRequest);
 
-        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
+        try (CloseableHttpResponse uploadResponse = httpClient.execute(uploadRequest)) {
+            String responseBody = EntityUtils.toString(uploadResponse.getEntity());
             JSONObject json = new JSONObject(responseBody);
             int mediaId = json.getInt("id");
             updateSiteSetting("site_icon", String.valueOf(mediaId));
@@ -715,21 +761,26 @@ public class WordPressMediaClient extends BaseWordPressClient {
         String prompt = "Analyze this image and provide SEO-optimized metadata for WordPress.\n\n" +
                        "Return ONLY a JSON object with these fields:\n" +
                        "- alt_text: Descriptive text for accessibility (under 125 chars)\n" +
-                       "- title: SEO-friendly title (under 60 chars)";
+                       "- title: Image title with words separated by dashes (under 60 chars)";
 
         String response = new OpenAIClient().callVisionModel(imageUrl, prompt);
         System.out.println("DEBUG: Raw API response: " + response);
 
         try {
             response = response.replaceAll("```json\\s*", "")
-                             .replaceAll("```", "")
-                             .replaceAll("(?m)^\\s*\"(\\w+)\":\\s*\"[^\"]*\"(?=\\s*,?\\s*$)\\s*\\n", "");
+                             .replaceAll("```", "");
 
             JSONObject metadata = new JSONObject(response.trim());
             
+            // Convert title to dash-separated format
+            String title = metadata.optString("title", "Image")
+                                 .toLowerCase()
+                                 .replaceAll("[^a-z0-9\\s-]", "")
+                                 .replaceAll("\\s+", "-");
+
             return new JSONObject()
                 .put("alt_text", metadata.optString("alt_text", "Image"))
-                .put("title", metadata.optString("title", "Image"));
+                .put("title", title);
                 
         } catch (Exception e) {
             System.err.println("Failed to parse JSON response: " + response);
@@ -739,13 +790,40 @@ public class WordPressMediaClient extends BaseWordPressClient {
         }
     }
 
+    public int uploadAuthorBlock(int pageId, String blockId, Image image, String firstName, String lastName) throws IOException, ParseException {
+        String prompt = "Analyze this image and provide a brief description of the person.\n\n" +
+                       "Return ONLY a JSON object with this field:\n" +
+                       "- description: Brief description of the person (under 100 chars)";
+
+        String response = new OpenAIClient().callVisionModel(image.getUrl(), prompt);
+        JSONObject aiResponse = new JSONObject(response.replaceAll("```json\\s*|```", "").trim());
+        
+        String description = aiResponse.optString("description", "Professional headshot");
+        String title = (firstName + "-" + lastName).toLowerCase().replaceAll("[^a-z0-9-]", "");
+        String altText = String.format("%s %s: %s", firstName, lastName, description);
+
+        return uploadImage(image, altText, title);
+    }
+
+    public String getMediaUrl(int mediaId) throws IOException, ParseException {
+        String url = baseUrl + "media/" + mediaId;
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject mediaInfo = new JSONObject(responseBody);
+            return mediaInfo.getString("source_url");
+        }
+    }
+
     // Test method
     public static void main(String[] args) {
         try {
             WordPressMediaClient client = new WordPressMediaClient();
             
 
-            client.updateColumnImage(318, "318_8978a8-3e", new Image("https://mbt.dsc.mybluehost.me/wp-content/uploads/2025/02/author_French_Poodles.jpg"));
+            client.updateColumnImage(318, "318_8978a8-3e", new Image("https://mbt.dsc.mybluehost.me/wp-content/uploads/2025/02/uploaded-image-173854633073010350874629203440067.jpg"));
         } catch (Exception e) {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();

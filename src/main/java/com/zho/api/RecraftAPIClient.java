@@ -121,7 +121,7 @@ public class RecraftAPIClient {
             RecraftAPIClient client = new RecraftAPIClient();
             String logoUrl = client.generateAILogo("RuckQuest", "a blog about rucking");
             WordPressMediaClient mediaClient = new WordPressMediaClient();
-            mediaClient.updateSiteLogoFromUrl(logoUrl);
+            mediaClient.updateSiteLogoFromUrl(logoUrl, "RuckQuest");
         } catch(IOException | ParseException e) {
             e.printStackTrace();
         }
