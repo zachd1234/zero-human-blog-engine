@@ -238,20 +238,13 @@ public class StaticContentService {
     public static void main(String[] args) {
         try {
             // Create test blog requests
-            BlogRequest testRequest = new BlogRequest("Y Combinator", "Y Combinator News");
+            BlogRequest testRequest = new BlogRequest("George Washington University Entrepreneurship", "George Washington University Entrepreneurship");
             // Initialize service
             StaticContentService service = new StaticContentService();
             
             // Log the start of the process
             System.out.println("Starting static page population...");
             
-            // Calculate total images needed (for logging)
-            int totalImages = service.pages.stream()
-                .mapToInt(StaticPage::getRequiredImageCount)
-                .sum();
-            System.out.println("Total images needed across all pages: " + totalImages);
-            
-            // Populate pages
             service.populateStaticPages(testRequest);
             
             System.out.println("✓ Success: Static pages populated for " + testRequest.getTopic());

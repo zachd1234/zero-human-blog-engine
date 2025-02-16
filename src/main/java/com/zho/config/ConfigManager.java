@@ -182,6 +182,12 @@ public class ConfigManager {
         return envVar != null ? envVar : properties.getProperty("koala.writer.api.url");
     }
 
+    public static String getGeminiKey() {
+        String envVar = System.getenv("GEMINI_AI_KEY");
+        return envVar != null ? envVar : properties.getProperty("gemini.api.key");
+    }
+
+
     // Add more getters as needed
 
     // Add this main method to test configuration loading
@@ -225,4 +231,5 @@ public class ConfigManager {
 
         System.out.println("\nAll configurations loaded successfully!");
     }
+
 } 

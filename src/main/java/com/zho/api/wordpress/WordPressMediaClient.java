@@ -2,6 +2,7 @@ package com.zho.api.wordpress;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
@@ -28,6 +29,8 @@ import com.zho.api.UnsplashClient;
 import java.util.List;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import org.json.JSONArray;
 
 public class WordPressMediaClient extends BaseWordPressClient {
 
@@ -817,16 +820,64 @@ public class WordPressMediaClient extends BaseWordPressClient {
         }
     }
 
-    // Test method
-    public static void main(String[] args) {
-        try {
-            WordPressMediaClient client = new WordPressMediaClient();
-            
+    public List<Integer> getAllMediaIds() throws IOException, ParseException {
+        List<Integer> allIds = new ArrayList<>();
+        int page = 1;
+        int perPage = 100;
+        boolean hasMore = true;
 
-            client.updateColumnImage(318, "318_8978a8-3e", new Image("https://mbt.dsc.mybluehost.me/wp-content/uploads/2025/02/uploaded-image-173854633073010350874629203440067.jpg"));
-        } catch (Exception e) {
-            System.err.println("Error during testing: " + e.getMessage());
-            e.printStackTrace();
+        while (hasMore) {
+            String endpoint = baseUrl + "media?per_page=" + perPage + "&page=" + page;
+            List<Integer> pageIds = getIdsFromEndpoint(endpoint);
+            if (pageIds.isEmpty()) {
+                hasMore = false;
+            } else {
+                allIds.addAll(pageIds);
+                page++;
+            }
         }
+        return allIds;
     }
+
+    private List<Integer> getIdsFromEndpoint(String endpoint) throws IOException, ParseException {
+        List<Integer> ids = new ArrayList<>();
+        HttpGet request = new HttpGet(URI.create(endpoint));
+        setAuthHeader(request);
+        
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("DEBUG: Raw response: " + responseBody);
+            
+            // Check if response is an error
+            if (response.getCode() >= 400) {
+                return ids; // Return empty list to signal end of pagination
+            }
+            
+            JSONArray items = new JSONArray(responseBody);
+            for (int i = 0; i < items.length(); i++) {
+                ids.add(items.getJSONObject(i).getInt("id"));
+            }
+        }
+        return ids;
+    }
+
+    public void deleteMedia(Integer mediaId) throws IOException {
+        String endpoint = baseUrl + "media/" + mediaId + "?force=true";
+        HttpDelete request = new HttpDelete(URI.create(endpoint));
+        setAuthHeader(request);
+        httpClient.execute(request).close();
+    }
+
+        // Test method
+        public static void main(String[] args) {
+            try {
+                WordPressMediaClient client = new WordPressMediaClient();
+                
+                System.out.println(client.getAllMediaIds());
+    
+            } catch (Exception e) {
+                System.err.println("Error during testing: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }    
 } 

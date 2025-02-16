@@ -609,7 +609,7 @@ public class WordPressBlockClient extends BaseWordPressClient {
         
         String siteTitle = getSiteTitle();
         String siteUrl = baseUrl.replaceAll("wp-json/wp/v2/$", "");
-        String authorUrl = siteUrl + "author/" + firstName.toLowerCase();
+        String authorUrl = siteUrl + "/author/" + firstName.toLowerCase();
         
         // Rest of the existing method remains the same, but use uploadedImageUrl instead of imageUrl
         String content = String.format(

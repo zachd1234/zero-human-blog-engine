@@ -82,7 +82,7 @@ public class ContentEngineService {
     public static void main(String[] args) {
         try {
             // Create test keywords
-            BlogRequest request = new BlogRequest("boxing", "boxing.");
+            BlogRequest request = new BlogRequest("George Washington University Entrepreneurship", "George Washington University Entrepreneurship");
             ContentEngineService contentEngineService = new ContentEngineService();
             contentEngineService.startContentEngine(request);
 

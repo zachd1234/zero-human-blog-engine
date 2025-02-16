@@ -58,10 +58,10 @@ public class BlogCreationService {
     }
     
     private void setupInitialConfig(BlogRequest request) throws IOException, ParseException, SQLException {
+        garbageCollectionService.deleteAllPosts(); 
         dbService.initializeDatabase(request);
         personaService.generateAndSetupPersona(request.getTopic());
         categoryService.setupSubtopics(request);
-        garbageCollectionService.deleteAllPosts();
     }
     
     private void populateSite(BlogRequest request) throws IOException, ParseException {

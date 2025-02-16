@@ -1,14 +1,17 @@
 package com.zho.services;
 
 import com.zho.api.wordpress.WordPressPostClient;
+import com.zho.api.wordpress.WordPressMediaClient;
 import java.util.List;
 import java.io.IOException;
 
 public class GarbageCollectionService {
     private final WordPressPostClient wordPressPostClient;
+    private final WordPressMediaClient wordPressMediaClient;
 
     public GarbageCollectionService() {
         this.wordPressPostClient = new WordPressPostClient();
+        this.wordPressMediaClient = new WordPressMediaClient();
     }
 
     public void deleteAllPosts() {
@@ -37,6 +40,31 @@ public class GarbageCollectionService {
         }
     }
 
+    public void deleteAllImages() {
+        try {
+            System.out.println("\n=== Starting Image Cleanup ===");
+            
+            List<Integer> imageIds = wordPressMediaClient.getAllMediaIds();
+            System.out.println("Found " + imageIds.size() + " images to delete");
+            
+            int deleted = 0;
+            for (Integer imageId : imageIds) {
+                try {
+                    wordPressMediaClient.deleteMedia(imageId);
+                    deleted++;
+                    System.out.println("Deleted image " + imageId + " (" + deleted + "/" + imageIds.size() + ")");
+                } catch (Exception e) {
+                    System.err.println("Failed to delete image " + imageId + ": " + e.getMessage());
+                }
+            }
+            
+            System.out.println("Successfully deleted " + deleted + " images");
+            
+        } catch (Exception e) {
+            System.err.println("Error during image cleanup: " + e.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
         try {
             System.out.println("Starting Garbage Collection Service Test");
@@ -44,9 +72,9 @@ public class GarbageCollectionService {
             
             // Create and run garbage collection service
             GarbageCollectionService garbageCollector = new GarbageCollectionService();
-            
-            System.out.println("Running delete all posts...");
-            garbageCollector.deleteAllPosts();
+
+            System.out.println("Running delete all images...");
+            garbageCollector.deleteAllImages();
             
             System.out.println("Test completed successfully");
             

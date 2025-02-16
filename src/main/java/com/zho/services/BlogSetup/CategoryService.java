@@ -105,6 +105,11 @@ public class CategoryService {
                 "All Things Rucking. gear reviews, training tips, fun facts, and more"
             );
             
+            BlogRequest testRequest2 = new BlogRequest(
+                "Y Combinator",
+                "Y Combinator"
+            );
+
             service.setupSubtopics(testRequest);
             
         } catch (Exception e) {

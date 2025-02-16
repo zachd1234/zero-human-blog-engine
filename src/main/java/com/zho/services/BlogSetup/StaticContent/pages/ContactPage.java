@@ -18,6 +18,7 @@ public class ContactPage implements StaticPage {
     @Override
     public void updateStaticContent(BlogRequest request, List<Image> images) {
         // No dynamic content needed
+        
     }
 
     @Override
