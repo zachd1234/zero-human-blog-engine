@@ -16,6 +16,7 @@ import com.zho.api.wordpress.WordPressCategoryClient;
 import com.zho.api.wordpress.WordPressMediaClient;
 import com.zho.api.KoalaAIClient;
 import com.zho.model.BlogRequest;
+import com.zho.api.BlogPostGeneratorAPI;
 
 import org.checkerframework.common.returnsreceiver.qual.This;
 import org.json.JSONObject;
@@ -31,6 +32,7 @@ public class AutoContentWorkflowService {
     private final GetImgAIClient getImgClient;
     private final WordPressCategoryClient wpCategoryClient;
     private final WordPressMediaClient mediaClient;
+    private final BlogPostGeneratorAPI blogPostGeneratorAPI;
 
     public AutoContentWorkflowService() {
         this.databaseService = new DatabaseService();
@@ -40,6 +42,7 @@ public class AutoContentWorkflowService {
         this.getImgClient = new GetImgAIClient();
         this.wpCategoryClient = new WordPressCategoryClient(); 
         this.mediaClient = new WordPressMediaClient();
+        this.blogPostGeneratorAPI = new BlogPostGeneratorAPI();
     }
     
     public void processNextKeyword() {
@@ -55,29 +58,14 @@ public class AutoContentWorkflowService {
             
             String title = generateTitle(keyword.getKeyword());
 
-            // 2. Try to generate content with one retry
+            // 2. Generate content using BlogPostGeneratorAPI
             String content = null;
-            BlogRequest blogInfo = databaseService.getBlogInfo();
-            Site site = Site.getCurrentSite();
-            
-            // Choose content generation method based on blog settings
-            if (site.isActive()) {
-                System.out.println("Using Koala Writer");
-                content = generateKoalaContentWithRetry(keyword.getKeyword(), Long.valueOf(keyword.getId()), blogInfo.getTopic(), title);
-            } else {
-                try {
-                    content = postWriterService.createNewBlogPost(keyword.getKeyword(), title);
-                } catch (IOException e) {
-                    System.out.println("First attempt failed, waiting 5 minutes before retry...");
-                    try {
-                        Thread.sleep(5 * 60 * 1000); // Wait 5 minutes
-                        content = postWriterService.createNewBlogPost(keyword.getKeyword(), title);
-                    } catch (IOException | InterruptedException retryException) {
-                        System.err.println("Content generation failed after retry. Skipping this keyword.");
-                        databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "FAILED");
-                        return;
-                    }
-                }
+            try {
+                content = blogPostGeneratorAPI.generatePost(keyword.getKeyword());
+            } catch (Exception e) {
+                System.out.println("Content generation failed: " + e.getMessage());
+                databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "FAILED");
+                return;
             }
 
             // Only continue if we have content

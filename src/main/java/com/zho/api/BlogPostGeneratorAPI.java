@@ -10,23 +10,18 @@ import java.util.Map;
 import org.json.JSONObject;
 
 public class BlogPostGeneratorAPI {
-    private final String API_URL = "http://localhost:8000/generate-post";
+    private final String API_URL = "https://aicontentwriter.onrender.com/generate?keyword=";
 
-    public Map<String, Object> generatePost(String keyword) throws Exception {
-        URL url = new URL("http://127.0.0.1:8000/generate-post");
+    public String generatePost(String keyword) throws Exception {
+        // URL encode the keyword
+        String encodedKeyword = java.net.URLEncoder.encode(keyword, StandardCharsets.UTF_8.toString());
+        URL url = new URL(API_URL + encodedKeyword);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
         con.setRequestProperty("Content-Type", "application/json");
         con.setRequestProperty("Accept", "application/json");
+        con.setRequestProperty("X-API-Key", "a2cfd05cb84440fea9aceacbc0efcca2");
         con.setDoOutput(true);
-
-        String jsonInputString = "{\"keyword\": \"" + keyword + "\"}";
-        System.out.println("Sending request: " + jsonInputString);  // Debug line
-
-        try (OutputStream os = con.getOutputStream()) {
-            byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
-        }
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
             StringBuilder response = new StringBuilder();
@@ -34,11 +29,13 @@ public class BlogPostGeneratorAPI {
             while ((responseLine = br.readLine()) != null) {
                 response.append(responseLine.trim());
             }
-            System.out.println("Response code: " + con.getResponseCode());  // Debug line
-            System.out.println("Response body: " + response.toString());    // Debug line
             
+            // Parse the JSON structure
             JSONObject responseJson = new JSONObject(response.toString());
-            return responseJson.toMap();
+            String htmlContent = responseJson.getJSONObject("data").getString("data");
+            
+            // Remove the ```html\n prefix and \n``` suffix
+            return htmlContent.replace("```html\n", "").replace("\n```", "");
         }
     }
 
@@ -47,10 +44,9 @@ public class BlogPostGeneratorAPI {
         String keyword = "how to start rucking";
         
         try {
-            Map<String, Object> result = api.generatePost(keyword);
+            String content = api.generatePost(keyword);
             System.out.println("=== Generated Content for '" + keyword + "' ===");
-            System.out.println("Title: " + result.get("title"));
-            System.out.println("Content: " + result.get("content"));
+            System.out.println(content);
             System.out.println("=====================================");
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
