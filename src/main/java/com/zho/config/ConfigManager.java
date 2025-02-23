@@ -187,6 +187,10 @@ public class ConfigManager {
         return envVar != null ? envVar : properties.getProperty("gemini.api.key");
     }
 
+    public static String getBlogPostGeneratorApiKey() {
+        String envVar = System.getenv("BLOG_POST_GENERATOR_API_KEY");
+        return envVar != null ? envVar : properties.getProperty("blog.generator.api.key");
+    }
 
     // Add more getters as needed
 

@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.json.JSONObject;
+import com.zho.config.ConfigManager;
 
 public class BlogPostGeneratorAPI {
     private final String API_URL = "https://aicontentwriter.onrender.com/generate?keyword=";
@@ -20,7 +21,7 @@ public class BlogPostGeneratorAPI {
         con.setRequestMethod("POST");
         con.setRequestProperty("Content-Type", "application/json");
         con.setRequestProperty("Accept", "application/json");
-        con.setRequestProperty("X-API-Key", "a2cfd05cb84440fea9aceacbc0efcca2");
+        con.setRequestProperty("X-API-Key", ConfigManager.getBlogPostGeneratorApiKey());
         con.setDoOutput(true);
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
