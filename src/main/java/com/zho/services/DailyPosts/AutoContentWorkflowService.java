@@ -56,14 +56,35 @@ public class AutoContentWorkflowService {
 
             System.out.println("Processing keyword: " + keyword.getKeyword());
             
-            String title = generateTitle(keyword.getKeyword());
-
-            // 2. Generate content using BlogPostGeneratorAPI
+            String title = null;
             String content = null;
+
+            // Generate content first
             try {
                 content = blogPostGeneratorAPI.generatePost(keyword.getKeyword());
+                
+                // Extract title and clean content
+                if (content != null) {
+                    // Look for h1 tag first
+                    if (content.contains("<h1>") && content.contains("</h1>")) {
+                        int startIndex = content.indexOf("<h1>") + 4;
+                        int endIndex = content.indexOf("</h1>");
+                        title = content.substring(startIndex, endIndex).trim();
+                        // Remove the h1 section from content
+                        content = content.substring(endIndex + 5).trim();
+                    } else {
+                        // Fallback: take first line as title
+                        String[] lines = content.split("\\n", 2);
+                        title = lines[0].replaceAll("<[^>]+>", "").trim();
+                        content = lines.length > 1 ? lines[1].trim() : content;
+                    }
+                }
+
+                if (title == null || title.isEmpty()) {
+                    throw new Exception("Could not extract title from content");
+                }
             } catch (Exception e) {
-                System.out.println("Content generation failed: " + e.getMessage());
+                System.out.println("Content generation or title extraction failed: " + e.getMessage());
                 databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "FAILED");
                 return;
             }

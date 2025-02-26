@@ -14,7 +14,7 @@ public enum Site {
 
     //toggle blog status here. //MAKE SURE TO ADD a row to BLOG_STATUS. 
     MAIN("https://ruckquest.com/wp-json/wp/v2/", 1, true),
-    TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2, false),
+    TEST("https://mbt.dsc.mybluehost.me/wp-json/wp/v2/", 2, true),
     SITE3("https://mbt.dsc.mybluehost.me/website_ef63468e/wp-json/wp/v2/", 3, false);
     //Site 3 (Url, 3, false)
 

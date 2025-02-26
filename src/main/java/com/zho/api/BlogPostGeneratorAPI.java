@@ -9,14 +9,23 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.json.JSONObject;
 import com.zho.config.ConfigManager;
+import com.zho.model.Site;
 
 public class BlogPostGeneratorAPI {
     private final String API_URL = "https://aicontentwriter.onrender.com/generate?keyword=";
 
     public String generatePost(String keyword) throws Exception {
-        // URL encode the keyword
+        // First get and clean the base URL
+        Site currentSite = Site.getCurrentSite();
+        String baseUrl = currentSite.getUrl().replaceAll("/wp-json/wp/v2.*", "");
+        System.out.println("Current site " + baseUrl);
+
+        // Now encode both parameters
         String encodedKeyword = java.net.URLEncoder.encode(keyword, StandardCharsets.UTF_8.toString());
-        URL url = new URL(API_URL + encodedKeyword);
+        String encodedBaseUrl = java.net.URLEncoder.encode(baseUrl, StandardCharsets.UTF_8.toString());
+        
+        // Construct URL with both parameters
+        URL url = new URL(API_URL + "?keyword=" + encodedKeyword + "&base_url=" + encodedBaseUrl);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
         con.setRequestProperty("Content-Type", "application/json");
