@@ -4,19 +4,28 @@ import com.zho.api.wordpress.WordPressPostClient;
 import com.zho.api.OpenAIClient;
 import com.zho.services.BlogSetup.StaticContent.StaticContentService;
 import com.zho.model.BlogRequest;
+import com.zho.model.Site;
 import com.zho.services.BlogSetup.StaticContent.pages.StaticPage;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import com.zho.services.DatabaseService;
 
 public class SEOSetupService {
     private final WordPressPostClient wordPressPostClient;
     private final OpenAIClient openAIClient;
     private final StaticContentService staticContentService;
+    private final HttpClient httpClient;
 
     public SEOSetupService() {
         this.wordPressPostClient = new WordPressPostClient();
         this.openAIClient = new OpenAIClient();
         this.staticContentService = new StaticContentService();
+        this.httpClient = HttpClient.newHttpClient();
     }
 
     public void setupSEO() {
@@ -61,7 +70,6 @@ public class SEOSetupService {
     public static void main(String[] args) {
         try {
             SEOSetupService seoSetupService = new SEOSetupService();
-            seoSetupService.setupSEO();
         } catch (Exception e) {
             System.err.println("❌ Error during SEO setup: " + e.getMessage());
         }

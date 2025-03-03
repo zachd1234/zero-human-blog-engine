@@ -238,7 +238,7 @@ public class StaticContentService {
     public static void main(String[] args) {
         try {
             // Create test blog requests
-            BlogRequest testRequest = new BlogRequest("George Washington University Entrepreneurship", "George Washington University Entrepreneurship");
+            BlogRequest testRequest = new BlogRequest("Sports Betting Prognosis", "Sports Betting Prognosis");
             // Initialize service
             StaticContentService service = new StaticContentService();
             

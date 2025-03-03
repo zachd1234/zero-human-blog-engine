@@ -9,15 +9,27 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.auth.oauth2.AccessToken;
+import java.net.URL;
+import java.net.URLEncoder;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 
 public class GoogleSearchConsoleClient {
-    private static final String INDEXING_API_URL = "https://indexing.googleapis.com/v3/urlNotifications:publish";
+    private static final String INSPECTION_API_URL = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
+    private static final String INDEX_REQUEST_API_URL = "https://searchconsole.googleapis.com/v1/urlInspection/index:requestIndexing";
     private static final String LOCAL_CREDENTIALS_PATH = "/Users/zachderhake/Downloads/autokeywords-445618-457181be0577.json";
     
     private final OkHttpClient client;
+    private final CloseableHttpClient httpClient;
 
     public GoogleSearchConsoleClient() throws IOException {
         client = new OkHttpClient();
+        httpClient = HttpClientBuilder.create().build();
     }
 
     private static String getCredentialsJson() throws IOException {
@@ -50,67 +62,74 @@ public class GoogleSearchConsoleClient {
     }
 
     public void submitUrl(String url) throws IOException {
-        // Validate URL first
         if (url == null || url.trim().isEmpty()) {
             throw new IOException("URL cannot be null or empty");
         }
-        url = url.trim();  // Remove any whitespace
+        url = url.trim();
         
-        System.out.println("\n🔍 Starting Google Search Console submission...");
-        System.out.println("URL to submit: " + url);
+        System.out.println("\n🔍 Starting URL Inspection...");
+        System.out.println("URL to inspect: " + url);
         
         try {
-            String credentialsJson = getCredentialsJson();
-            System.out.println("✅ Credentials loaded successfully");
-            
+            // Get credentials with webmasters scope
             GoogleCredentials credentials = GoogleCredentials.fromStream(
-                new ByteArrayInputStream(credentialsJson.getBytes(StandardCharsets.UTF_8)))
-                .createScoped("https://www.googleapis.com/auth/indexing");
-            System.out.println("✅ Google credentials created with indexing scope");
+                new ByteArrayInputStream(getCredentialsJson().getBytes(StandardCharsets.UTF_8)))
+                .createScoped("https://www.googleapis.com/auth/webmasters");
             
-            credentials.refreshIfExpired();
-            System.out.println("✅ Credentials refreshed");
+            credentials.refresh();
             
-            // Create request body
-            String jsonBody = String.format("{\"url\":\"%s\",\"type\":\"URL_UPDATED\"}", url);
-            System.out.println("📝 Request body: " + jsonBody);
-
-            RequestBody body = RequestBody.create(
-                MediaType.parse("application/json; charset=utf-8"),
-                jsonBody
+            // Inspect URL
+            String domain = new URL(url).getHost();
+            String jsonBody = String.format(
+                "{"
+                + "\"inspectionUrl\": \"%s\","
+                + "\"siteUrl\": \"sc-domain:%s\""
+                + "}", 
+                url, 
+                domain
             );
 
-            Request request = new Request.Builder()
-                .url(INDEXING_API_URL)
+            Request inspectRequest = new Request.Builder()
+                .url(INSPECTION_API_URL)
                 .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
                 .addHeader("Content-Type", "application/json")
-                .post(body)
+                .post(RequestBody.create(
+                    MediaType.parse("application/json; charset=utf-8"),
+                    jsonBody))
                 .build();
-            System.out.println("📤 Request built and ready to send");
 
-            try (Response response = client.newCall(request).execute()) {
-                int responseCode = response.code();
+            try (Response response = client.newCall(inspectRequest).execute()) {
                 String responseBody = response.body() != null ? response.body().string() : "";
                 
-                System.out.println("\n📥 Response from Google Search Console API:");
-                System.out.println("Status Code: " + responseCode);
-                System.out.println("Response Body: " + responseBody);
-                
-                if (responseCode != 200) {
-                    throw new IOException("Failed to submit URL. Response code: " + responseCode);
+                if (response.code() == 200) {
+                    JsonObject jsonResponse = JsonParser.parseString(responseBody).getAsJsonObject();
+                    JsonObject inspectionResult = jsonResponse.getAsJsonObject("inspectionResult");
+                    JsonObject indexStatus = inspectionResult.getAsJsonObject("indexStatusResult");
+                    
+                    System.out.println("\n📋 Inspection Results:");
+                    System.out.println("Coverage State: " + indexStatus.get("coverageState").getAsString());
+                    if (indexStatus.has("indexingState")) {
+                        System.out.println("Indexing State: " + indexStatus.get("indexingState").getAsString());
+                    }
+                    if (indexStatus.has("lastCrawlTime")) {
+                        System.out.println("Last Crawl: " + indexStatus.get("lastCrawlTime").getAsString());
+                    }
+                    
+                    // Get the inspection link from the response
+                    String inspectionLink = inspectionResult.get("inspectionResultLink").getAsString();
+                    System.out.println("\n🔗 To request indexing, visit:");
+                    System.out.println(inspectionLink);
+                    System.out.println("Then click 'Request Indexing' in the Search Console interface");
+                    
+                } else {
+                    throw new IOException("Inspection failed. Status: " + response.code());
                 }
-                
-                // Verify the response contains our URL
-                if (!responseBody.contains(url)) {
-                    throw new IOException("Response doesn't contain the submitted URL. Possible truncation.");
-                }
-                
-                System.out.println("\n✅ Successfully submitted URL to Google Search Console: " + url);
             }
             
         } catch (Exception e) {
-            System.err.println("\n❌ Error submitting URL: " + e.getMessage());
-            throw new IOException("Failed to submit URL: " + url, e);
+            System.err.println("\n❌ Error during inspection:");
+            System.err.println(e.getMessage());
+            throw new IOException("Failed to inspect URL: " + url, e);
         }
     }
 
@@ -125,6 +144,21 @@ public class GoogleSearchConsoleClient {
         }
     }
 
+    public void notifyGoogle() throws IOException {
+        String sitemapUrl = "https://ruckquest.com/sitemap_index.xml";
+        String pingUrl = "https://www.google.com/ping?sitemap=" + URLEncoder.encode(sitemapUrl, StandardCharsets.UTF_8);
+        
+        System.out.println("\n🔔 Pinging Google with sitemap: " + sitemapUrl);
+        HttpGet request = new HttpGet(pingUrl);
+        try (CloseableHttpResponse response = httpClient.execute(request)) {
+            int statusCode = response.getStatusLine().getStatusCode();
+            System.out.println("Sitemap ping response: " + statusCode);
+            if (statusCode == 200) {
+                System.out.println("✅ Successfully notified Google about sitemap update");
+            }
+        }
+    }
+
     public static void main(String[] args) {
         try {
             // First test getCredentialsJson
@@ -135,14 +169,14 @@ public class GoogleSearchConsoleClient {
             // Create credentials and get access token
             GoogleCredentials googleCreds = GoogleCredentials.fromStream(
                 new ByteArrayInputStream(credentials.getBytes(StandardCharsets.UTF_8)))
-                .createScoped("https://www.googleapis.com/auth/indexing");
+                .createScoped("https://www.googleapis.com/auth/webmasters");
             
             googleCreds.refreshIfExpired();
                         
             // Continue with URL test
-            String testUrl = "https://ruckquest.com/ultimate-guide-rucking-apple-watch-fitness/";
+            String testUrl = "https://ruckquest.com/rucking-at-the-gym-guide-weighted-walks/";
             System.out.println("\n🌐 Testing URL submission for: " + testUrl);
-            client.submitUrl(testUrl);
+            client.notifyGoogle();
             
         } catch (Exception e) {
             System.err.println("\n❌ Error in test: " + e.getMessage());

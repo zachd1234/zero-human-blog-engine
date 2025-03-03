@@ -129,7 +129,7 @@ public class AutoContentWorkflowService {
     }
 
     //TO DELETE LATER
-    public void indexPageTesting() {
+    public void PageTesting() {
         String content = "<p>This is a test article with enough content to be considered valid.</p>";
         String title = "Test Article for Indexing1";
         String category = "uncategorized";
