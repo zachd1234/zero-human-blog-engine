@@ -27,6 +27,8 @@ import java.net.HttpURLConnection;
 import java.io.InputStream;
 import com.zho.config.ConfigManager;
 import java.util.concurrent.TimeUnit;
+import com.zho.services.DatabaseService;
+import java.sql.SQLException;
 
 public class SiteBrandingService {
     private final WordPressMediaClient mediaClient;
@@ -46,6 +48,15 @@ public class SiteBrandingService {
 
         String blogName = generateBlogName(request);
         System.out.println("Generated blog name: " + blogName);
+        
+        // Update the blog name in the database
+        try {
+            DatabaseService dbService = new DatabaseService();
+            dbService.updateBlogName(blogName);
+        } catch (SQLException e) {
+            System.err.println("Error updating blog name in database: " + e.getMessage());
+            // Continue with the process even if database update fails
+        }
 
         // Select domain name
         String domain = selectDomain(blogName);

@@ -518,14 +518,22 @@ public class DatabaseService {
                 System.out.println("✅ Cleared existing blog info");
             }
             
+            // Get the URL from the current site and strip the WordPress API path if present
+            String url = Site.getCurrentSite().getUrl();
+            if (url.contains("/wp-json/wp/v2/")) {
+                url = url.substring(0, url.indexOf("/wp-json/wp/v2/"));
+            }
+            
             // Then insert new blog info
-            String insertSql = "INSERT INTO blog_info (site_id, topic, description) VALUES (?, ?, ?)";
+            String insertSql = "INSERT INTO blog_info (site_id, topic, description, url, blog_name) VALUES (?, ?, ?, ?, ?)";
             try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
                 insertStmt.setInt(1, currentSiteId);
                 insertStmt.setString(2, topic);
                 insertStmt.setString(3, description);
+                insertStmt.setString(4, url);
+                insertStmt.setString(5, ""); // Leave blog_name blank for now
                 insertStmt.executeUpdate();
-                System.out.println("✅ Inserted new blog info");
+                System.out.println("✅ Inserted new blog info with URL: " + url);
             }
         } catch (SQLException e) {
             System.err.println("❌ Error updating blog info: " + e.getMessage());
@@ -550,7 +558,7 @@ public class DatabaseService {
     public BlogRequest getBlogInfo() throws SQLException {
         System.out.println("\n📚 Retrieving blog info...");
         
-        String sql = "SELECT topic, description FROM blog_info WHERE site_id = ?";
+        String sql = "SELECT topic, description, url, blog_name FROM blog_info WHERE site_id = ?";
         
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -563,6 +571,8 @@ public class DatabaseService {
                     rs.getString("topic"),
                     rs.getString("description")
                 );
+                // You'll need to update the BlogRequest class to handle these new fields
+                // or modify how you're using the returned data
                 System.out.println("✅ Retrieved blog info for site " + currentSiteId);
                 return info;
             } else {
@@ -584,6 +594,30 @@ public class DatabaseService {
         } catch (SQLException e) {
             System.err.println("Error clearing keywords: " + e.getMessage());
             throw new RuntimeException("Database error while clearing keywords", e);
+        }
+    }
+
+    public void updateBlogName(String blogName) throws SQLException {
+        System.out.println("\n📝 Updating blog name to: " + blogName);
+        
+        String sql = "UPDATE blog_info SET blog_name = ? WHERE site_id = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, blogName);
+            stmt.setInt(2, currentSiteId);
+            
+            int rowsUpdated = stmt.executeUpdate();
+            if (rowsUpdated > 0) {
+                System.out.println("✅ Successfully updated blog name to: " + blogName);
+            } else {
+                System.out.println("⚠️ No blog info record found to update for site ID: " + currentSiteId);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error updating blog name: " + e.getMessage());
+            throw e;
         }
     }
 } 
