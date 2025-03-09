@@ -1,23 +1,39 @@
 package com.zho.services.BlogSetup;
 
-public class BacklinkService {
-    /**
-     * Given blog topic → urls
-     * Given blog topic → template
-     * Given urls → email and personalization 
-     * Given emails, personalization and template, assemble emails 
-     * Given assembled emails, send them 
-     * When there is a response, negotiate and have tools at disposal to either call a human or write a post
-     */
+import com.zho.api.BlogPostGeneratorAPI;
+import com.zho.model.Site;
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-     public String[] getUrls(String blogTopic) {
-        return new String[] {
-            "https://www.google.com",
-            "https://www.yahoo.com",
-            "https://www.bing.com"
-        };
-     }
-     
-     
+public class BacklinkService {
+    private static final Logger logger = LoggerFactory.getLogger(BacklinkService.class);
+    private final BlogPostGeneratorAPI blogPostGeneratorAPI;
+    
+    public BacklinkService(BlogPostGeneratorAPI blogPostGeneratorAPI) {
+        this.blogPostGeneratorAPI = blogPostGeneratorAPI;
+    }
+    
+    public void setupBacklinkCampaign() {
+        Site currentSite = Site.getCurrentSite();
+        
+        if (currentSite != null && currentSite.isActive()) {
+            try {
+                JSONObject result = blogPostGeneratorAPI.setupOutreach(String.valueOf(currentSite.getSiteId()));
+                logger.info("Backlink campaign setup successful: {}", result.toString());
+            } catch (Exception e) {
+                logger.error("Error setting up backlink campaign: {}", e.getMessage(), e);
+            }
+        } else {
+            logger.info("Site is not in production. Skipping email outreach for now.");
+        }
+    }
+    
+    public static void main(String[] args) {
+        BlogPostGeneratorAPI api = new BlogPostGeneratorAPI();
+        BacklinkService service = new BacklinkService(api);
+        service.setupBacklinkCampaign();
+        logger.info("Backlink campaign setup process completed");
+    }
 }
 
