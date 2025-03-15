@@ -232,7 +232,7 @@ public class PersonaService {
 public static void main(String[] args) {
     try {
         PersonaService personaService = new PersonaService();
-        String topic = "hiking in Europe";
+        String topic = "Rucking";
         
         System.out.println("Generating persona for: " + topic);
         personaService.generateAndSetupPersona(topic);

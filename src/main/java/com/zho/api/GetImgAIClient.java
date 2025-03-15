@@ -96,12 +96,6 @@ public class GetImgAIClient {
         String modelId = ConfigManager.getVertexEndpointId(); // This is actually the model ID
         String credentialsPath = ConfigManager.getVertexCredentialsPath();
         
-        System.out.println("Using Vertex AI configuration:");
-        System.out.println("Project ID: " + projectId);
-        System.out.println("Location: " + location);
-        System.out.println("Model ID: " + modelId);
-        System.out.println("Credentials Path: " + credentialsPath);
-
         // Create credentials from the file
         GoogleCredentials credentials = GoogleCredentials.fromStream(
             new FileInputStream(credentialsPath));
@@ -172,7 +166,6 @@ public class GetImgAIClient {
             
             // Parse the response to get the image URL
             String responseJson = JsonFormat.printer().print(response);
-            System.out.println("Response JSON: " + responseJson);  // Debug the full response
 
             JSONObject jsonResponse = new JSONObject(responseJson);
             JSONArray predictions = jsonResponse.getJSONArray("predictions");

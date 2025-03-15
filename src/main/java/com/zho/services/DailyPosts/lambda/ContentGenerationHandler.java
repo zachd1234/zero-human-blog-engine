@@ -2,10 +2,6 @@ package com.zho.services.DailyPosts.lambda;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
-import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder;
-import com.amazonaws.services.simplesystemsmanagement.model.GetParameterRequest;
-import com.amazonaws.services.simplesystemsmanagement.model.GetParameterResult;
 import com.zho.model.Site;
 import com.zho.services.DailyPosts.AutoContentWorkflowService;
 import java.io.File;
@@ -19,16 +15,19 @@ public class ContentGenerationHandler implements RequestHandler<Object, String> 
      */
     private void setupGoogleCredentials(Context context) {
         try {
-            // Get credentials from AWS Parameter Store
-            context.getLogger().log("Getting Google credentials from Parameter Store...");
+            context.getLogger().log("Getting Google credentials from Parameter Store using AWS SDK v2...");
             
-            AWSSimpleSystemsManagement ssmClient = AWSSimpleSystemsManagementClientBuilder.defaultClient();
-            GetParameterRequest paramRequest = new GetParameterRequest()
-                .withName("/lambda/google-credentials")
-                .withWithDecryption(true);
+            // Use AWS SDK v2 for Parameter Store
+            software.amazon.awssdk.services.ssm.SsmClient ssmClient = software.amazon.awssdk.services.ssm.SsmClient.create();
+            software.amazon.awssdk.services.ssm.model.GetParameterRequest paramRequest = 
+                software.amazon.awssdk.services.ssm.model.GetParameterRequest.builder()
+                    .name("/lambda/google-credentials")
+                    .withDecryption(true)
+                    .build();
             
-            GetParameterResult paramResult = ssmClient.getParameter(paramRequest);
-            String credentialsJson = paramResult.getParameter().getValue();
+            software.amazon.awssdk.services.ssm.model.GetParameterResponse paramResponse = 
+                ssmClient.getParameter(paramRequest);
+            String credentialsJson = paramResponse.parameter().value();
             
             if (credentialsJson == null || credentialsJson.isEmpty()) {
                 context.getLogger().log("ERROR: Failed to get Google credentials from Parameter Store");
