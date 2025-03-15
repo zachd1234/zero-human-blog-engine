@@ -4,60 +4,12 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.zho.model.Site;
 import com.zho.services.DailyPosts.AutoContentWorkflowService;
-import java.io.File;
-import java.io.FileWriter;
 
 public class ContentGenerationHandler implements RequestHandler<Object, String> {
-    
-    /**
-     * Sets up Google credentials for Vertex AI
-     * @param context Lambda context for logging
-     */
-    private void setupGoogleCredentials(Context context) {
-        try {
-            context.getLogger().log("Getting Google credentials from Parameter Store using AWS SDK v2...");
-            
-            // Use AWS SDK v2 for Parameter Store
-            software.amazon.awssdk.services.ssm.SsmClient ssmClient = software.amazon.awssdk.services.ssm.SsmClient.create();
-            software.amazon.awssdk.services.ssm.model.GetParameterRequest paramRequest = 
-                software.amazon.awssdk.services.ssm.model.GetParameterRequest.builder()
-                    .name("/lambda/google-credentials")
-                    .withDecryption(true)
-                    .build();
-            
-            software.amazon.awssdk.services.ssm.model.GetParameterResponse paramResponse = 
-                ssmClient.getParameter(paramRequest);
-            String credentialsJson = paramResponse.parameter().value();
-            
-            if (credentialsJson == null || credentialsJson.isEmpty()) {
-                context.getLogger().log("ERROR: Failed to get Google credentials from Parameter Store");
-                return;
-            }
-            
-            context.getLogger().log("Successfully retrieved credentials from Parameter Store (length: " + credentialsJson.length() + ")");
-            
-            // Write to temp file (Lambda allows writing to /tmp)
-            File credentialsFile = new File("/tmp/google-credentials.json");
-            try (FileWriter writer = new FileWriter(credentialsFile)) {
-                writer.write(credentialsJson);
-            }
-            
-            // Set system property to point to this file
-            System.setProperty("GOOGLE_APPLICATION_CREDENTIALS", credentialsFile.getAbsolutePath());
-            
-            context.getLogger().log("Google credentials set up successfully at: " + credentialsFile.getAbsolutePath());
-        } catch (Exception e) {
-            context.getLogger().log("Error setting up Google credentials: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
     
     @Override
     public String handleRequest(Object input, Context context) {
         try {
-            // Set up Google credentials first
-            setupGoogleCredentials(context);
-            
             // Add a test log message
             context.getLogger().log("CICD works!");
             

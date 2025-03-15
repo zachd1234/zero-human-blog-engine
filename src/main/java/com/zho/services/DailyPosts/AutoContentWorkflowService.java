@@ -213,7 +213,7 @@ public class AutoContentWorkflowService {
     }
     
     private String generateCoverImage(String description) throws IOException {
-        return getImgClient.generateImageWithVertex(description, 768, 432);
+        return getImgClient.generateImage(description, 768, 432);
     }
 
     private String generateTitle(String keyword) throws IOException {
