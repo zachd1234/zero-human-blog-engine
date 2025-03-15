@@ -2,6 +2,10 @@ package com.zho.services.DailyPosts.lambda;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagement;
+import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder;
+import com.amazonaws.services.simplesystemsmanagement.model.GetParameterRequest;
+import com.amazonaws.services.simplesystemsmanagement.model.GetParameterResult;
 import com.zho.model.Site;
 import com.zho.services.DailyPosts.AutoContentWorkflowService;
 import java.io.File;
@@ -15,12 +19,23 @@ public class ContentGenerationHandler implements RequestHandler<Object, String> 
      */
     private void setupGoogleCredentials(Context context) {
         try {
-            // Get credentials JSON from environment variable
-            String credentialsJson = System.getenv("GOOGLE_CREDENTIALS_JSON");
+            // Get credentials from AWS Parameter Store
+            context.getLogger().log("Getting Google credentials from Parameter Store...");
+            
+            AWSSimpleSystemsManagement ssmClient = AWSSimpleSystemsManagementClientBuilder.defaultClient();
+            GetParameterRequest paramRequest = new GetParameterRequest()
+                .withName("/lambda/google-credentials")
+                .withWithDecryption(true);
+            
+            GetParameterResult paramResult = ssmClient.getParameter(paramRequest);
+            String credentialsJson = paramResult.getParameter().getValue();
+            
             if (credentialsJson == null || credentialsJson.isEmpty()) {
-                context.getLogger().log("ERROR: GOOGLE_CREDENTIALS_JSON environment variable not set");
+                context.getLogger().log("ERROR: Failed to get Google credentials from Parameter Store");
                 return;
             }
+            
+            context.getLogger().log("Successfully retrieved credentials from Parameter Store (length: " + credentialsJson.length() + ")");
             
             // Write to temp file (Lambda allows writing to /tmp)
             File credentialsFile = new File("/tmp/google-credentials.json");
