@@ -868,6 +868,65 @@ public class WordPressMediaClient extends BaseWordPressClient {
         httpClient.execute(request).close();
     }
 
+    /**
+     * Upload media to WordPress directly from base64-encoded image data
+     * @param base64ImageData The base64-encoded image data
+     * @param filename The filename to use
+     * @param title Optional title for the media
+     * @return The URL of the uploaded media
+     * @throws IOException If there's an error uploading the media
+     */
+    public String uploadMediaFromBase64(String base64ImageData, String filename, String title) throws IOException {
+        System.out.println("DEBUG: Starting media upload from base64 data");
+        System.out.println("DEBUG: Current site URL: " + baseUrl);
+        
+        String url = baseUrl + "media";
+        System.out.println("DEBUG: Full upload URL: " + url);
+        
+        // Create multipart request
+        HttpPost uploadRequest = new HttpPost(URI.create(url));
+        setAuthHeader(uploadRequest);
+        
+        // Decode the base64 data
+        byte[] imageBytes = Base64.getDecoder().decode(base64ImageData);
+        System.out.println("DEBUG: Decoded image size: " + imageBytes.length + " bytes");
+        
+        // Create multipart entity
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.addBinaryBody(
+            "file",
+            imageBytes,
+            ContentType.IMAGE_JPEG,
+            filename
+        );
+        
+        // Add title if provided
+        if (title != null && !title.isEmpty()) {
+            builder.addTextBody("title", title);
+            System.out.println("DEBUG: Added title: " + title);
+        }
+        
+        HttpEntity multipart = builder.build();
+        uploadRequest.setEntity(multipart);
+        
+        try (CloseableHttpResponse response = httpClient.execute(uploadRequest)) {
+            System.out.println("DEBUG: Response status code: " + response.getCode());
+            String responseBody = EntityUtils.toString(response.getEntity());
+            System.out.println("DEBUG: Raw response: " + responseBody);
+            
+            JSONObject mediaResponse = new JSONObject(responseBody);
+            String mediaUrl = mediaResponse.getString("source_url");
+            System.out.println("Media uploaded successfully. URL: " + mediaUrl);
+            
+            return mediaUrl;
+        } catch (Exception e) {
+            System.err.println("Error uploading media: " + e.getMessage());
+            System.err.println("DEBUG: Full error:");
+            e.printStackTrace();
+            throw new IOException("Failed to upload media", e);
+        }
+    }
+
         // Test method
         public static void main(String[] args) {
             try {

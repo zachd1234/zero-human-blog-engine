@@ -52,11 +52,11 @@ public class PersonaService {
             System.out.println("Generated description: " + stereotypicalDescription);
             
             // Generate the image and store the URL
-            this.imageUrl = getImgAIClient.generateImage(
+            this.imageUrl = getImgAIClient.generateImageWithVertex(
                 stereotypicalDescription,
                 1024,
                 1024,
-                4,
+                1,
                 null
             );
             

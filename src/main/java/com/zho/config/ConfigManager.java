@@ -192,6 +192,42 @@ public class ConfigManager {
         return envVar != null ? envVar : properties.getProperty("blog.generator.api.key");
     }
 
+    /**
+     * Gets the Google Cloud project ID for Vertex AI
+     * @return The project ID
+     */
+    public static String getVertexProjectId() {
+        String envVar = System.getenv("GOOGLE_PROJECT_ID");
+        return envVar != null ? envVar : properties.getProperty("google.project.id");
+    }
+
+    /**
+     * Gets the Google Cloud location for Vertex AI
+     * @return The location (defaults to "us-central1")
+     */
+    public static String getVertexLocation() {
+        String envVar = System.getenv("GOOGLE_LOCATION");
+        return envVar != null ? envVar : properties.getProperty("google.location", "us-central1");
+    }
+
+    /**
+     * Gets the Vertex AI endpoint ID for Imagen
+     * @return The endpoint ID (defaults to "imagen-3.0-generate-002")
+     */
+    public static String getVertexEndpointId() {
+        String envVar = System.getenv("GOOGLE_ENDPOINT_ID");
+        return envVar != null ? envVar : properties.getProperty("google.endpoint.id", "imagen-3.0-generate-002");
+    }
+
+    /**
+     * Gets the path to Google Cloud credentials file
+     * @return The credentials file path
+     */
+    public static String getVertexCredentialsPath() {
+        String envVar = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+        return envVar != null ? envVar : properties.getProperty("google.application.credentials");
+    }
+
     // Add more getters as needed
 
     // Add this main method to test configuration loading

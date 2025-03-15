@@ -223,7 +223,7 @@ public class StaticContentService {
         GetImgAIClient getImgAIClient = new GetImgAIClient();
         
         // Get the temporary URL from GetImg AI
-        String tempImageUrl = getImgAIClient.generateImage(prompt);
+        String tempImageUrl = getImgAIClient.generateImageWithVertex(prompt);
         
         // Download and upload to WordPress media library
         String permanentUrl = mediaClient.uploadImageFromUrl(tempImageUrl);
@@ -238,7 +238,7 @@ public class StaticContentService {
     public static void main(String[] args) {
         try {
             // Create test blog requests
-            BlogRequest testRequest = new BlogRequest("Sports Betting Prognosis", "Sports Betting Prognosis");
+            BlogRequest testRequest = new BlogRequest("Crypto Tax", "Crypto Tax Tips");
             // Initialize service
             StaticContentService service = new StaticContentService();
             

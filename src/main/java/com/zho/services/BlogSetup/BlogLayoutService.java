@@ -187,11 +187,11 @@ public class BlogLayoutService {
         String imageDescription = generateAuthorImagePrompt(blogRequest.getTopic() + ". The image exhibits a high level of realism, reminiscent of modern portrait photography, in 4K UHD quality, suitable for a profile picture or official use", authorName);
         
         // Generate and return only the image URL from GetImgAI
-        return getImgAIClient.generateImage(
+        return getImgAIClient.generateImageWithVertex(
             imageDescription,
             1024,
             1024,
-            4,
+            1,
             null
         );
     }
