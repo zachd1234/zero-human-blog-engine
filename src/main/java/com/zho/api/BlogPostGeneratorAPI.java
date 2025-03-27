@@ -14,6 +14,7 @@ import com.zho.model.Site;
 public class BlogPostGeneratorAPI {
     private final String API_URL = "https://aicontentwriter.onrender.com/generate?keyword=";
     private final String OUTREACH_SETUP_URL = "https://aicontentwriter.onrender.com/setup-outreach";
+    private final String RUN_OUTREACH_CAMPAIGN_URL = "https://aicontentwriter.onrender.com/run-outreach-campaign";
 
     public String generatePost(String keyword) throws Exception {
         // First get and clean the base URL
@@ -64,6 +65,40 @@ public class BlogPostGeneratorAPI {
         // Create JSON request body
         JSONObject requestBody = new JSONObject();
         requestBody.put("site_id", siteId);
+
+        // Write request body to connection
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+            os.write(input, 0, input.length);
+        }
+
+        // Read the response
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8))) {
+            StringBuilder response = new StringBuilder();
+            String responseLine;
+            while ((responseLine = br.readLine()) != null) {
+                response.append(responseLine.trim());
+            }
+            
+            // Parse and return the JSON response
+            return new JSONObject(response.toString());
+        }
+    }
+
+    public JSONObject runOutreachCampaign(String siteId, String postUrl, String postTitle) throws Exception {
+        URL url = new URL(RUN_OUTREACH_CAMPAIGN_URL);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("POST");
+        con.setRequestProperty("Content-Type", "application/json");
+        con.setRequestProperty("Accept", "application/json");
+        con.setRequestProperty("X-API-Key", ConfigManager.getBlogPostGeneratorApiKey());
+        con.setDoOutput(true);
+
+        // Create JSON request body
+        JSONObject requestBody = new JSONObject();
+        requestBody.put("site_id", siteId);
+        requestBody.put("post_url", postUrl);
+        requestBody.put("post_title", postTitle);
 
         // Write request body to connection
         try (OutputStream os = con.getOutputStream()) {

@@ -410,22 +410,13 @@ public class WordPressMediaClient extends BaseWordPressClient {
         System.out.println("Uploaded media ID: " + mediaId);
         
         // Get the WordPress media URL from the upload
-        String url = baseUrl + "media/" + mediaId;
-        System.out.println("Getting media URL from: " + url);
-        HttpGet getRequest = new HttpGet(URI.create(url));
-        setAuthHeader(getRequest);
-        String uploadedImageUrl;
-        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
-            String responseBody = EntityUtils.toString(response.getEntity());
-            JSONObject mediaInfo = new JSONObject(responseBody);
-            uploadedImageUrl = mediaInfo.getString("source_url");
-            System.out.println("Got uploaded image URL: " + uploadedImageUrl);
-        }
+        String uploadedImageUrl = getMediaUrl(mediaId);
+        System.out.println("Got uploaded image URL: " + uploadedImageUrl);
         
         // Update the page content
-        url = baseUrl + "pages/" + pageId + "?context=edit";
+        String url = baseUrl + "pages/" + pageId + "?context=edit";
         System.out.println("Getting page content from: " + url);
-        getRequest = new HttpGet(URI.create(url));
+        HttpGet getRequest = new HttpGet(URI.create(url));
         setAuthHeader(getRequest);
         
         try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
@@ -435,57 +426,195 @@ public class WordPressMediaClient extends BaseWordPressClient {
             JSONObject content = page.getJSONObject("content");
             String currentContent = content.getString("raw");
             
-            // Find and replace the infobox image block
-            String infoboxPattern = "<!-- wp:kadence/infobox \\{[^}]*\"uniqueID\":\"" + infoboxId + "\"[^}]*\\}[\\s\\S]*?<!-- /wp:kadence/infobox -->";
-            String newInfobox = "<!-- wp:kadence/infobox {" +
-                    "\"uniqueID\":\"" + infoboxId + "\"," +
-                    "\"containerBackground\":\"#f2f2f2\"," +
-                    "\"containerBackgroundOpacity\":1," +
-                    "\"containerHoverBackground\":\"#f2f2f2\"," +
-                    "\"containerHoverBackgroundOpacity\":1," +
-                    "\"containerPadding\":[0,0,0,0]," +
-                    "\"mediaType\":\"image\"," +
-                    "\"mediaImage\":[{" +
-                    "\"id\":" + mediaId + "," +
-                    "\"url\":\"" + uploadedImageUrl + "\"," +
-                    "\"alt\":\"" + metadata.getString("alt_text") + "\"," +
-                    "\"maxWidth\":493," +
-                    "\"hoverAnimation\":\"none\"" +
-                    "}]," +
-                    "\"mediaStyle\":[{" +
-                    "\"background\":\"transparent\"," +
-                    "\"hoverBackground\":\"transparent\"," +
-                    "\"border\":\"#444444\"," +
-                    "\"hoverBorder\":\"#444444\"," +
-                    "\"borderRadius\":0," +
-                    "\"borderWidth\":[0,0,0,0]," +
-                    "\"padding\":[0,0,0,0]," +
-                    "\"margin\":[0,0,0,0]" +
-                    "}]} -->\n" +
-                    "<div class=\"kt-info-box" + infoboxId + " wp-block-kadence-infobox\">" +
-                    "<div class=\"kt-blocks-info-box-media-container\"><div class=\"kt-blocks-info-box-media\">" +
-                    "<img src=\"" + uploadedImageUrl + "\" alt=\"" + metadata.getString("alt_text") + "\" class=\"wp-image-" + mediaId + "\"/>" +
-                    "</div></div></div>\n" +
-                    "<!-- /wp:kadence/infobox -->";
+            System.out.println("Looking for Kadence column with uniqueID: " + infoboxId);
             
-            String updatedContent = currentContent.replaceAll(infoboxPattern, newInfobox);
+            // Find the Kadence column with this exact structure:
+            // <!-- wp:kadence/column {"borderWidth":["","","",""],"uniqueID":"318_eaccd9-42","kbVersion":2} -->
+            String columnPattern = "<!-- wp:kadence/column [^>]*\"uniqueID\":\"" + infoboxId + "\"[\\s\\S]*?/wp:kadence/column -->";
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(columnPattern);
+            java.util.regex.Matcher matcher = pattern.matcher(currentContent);
             
-            JSONObject updatePayload = new JSONObject();
-            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
-            
-            HttpPost updateRequest = new HttpPost(URI.create(url));
-            setAuthHeader(updateRequest);
-            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
-            updateRequest.setHeader("Content-Type", "application/json");
-            
-            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
-                int statusCode = updateResponse.getCode();
-                System.out.println("Update status for page " + pageId + " infobox: " + statusCode);
-                if (statusCode >= 300) {
-                    String errorResponse = EntityUtils.toString(updateResponse.getEntity());
-                    System.err.println("Error response: " + errorResponse);
+            if (matcher.find()) {
+                String columnContent = matcher.group(0);
+                System.out.println("Found Kadence column with uniqueID: " + infoboxId);
+                
+                // Find the image block within this column with this exact structure:
+                // <!-- wp:image {"id":2570,"width":"550px","height":"auto","aspectRatio":"1","sizeSlug":"full","linkDestination":"none"} -->
+                String imageBlockPattern = "<!-- wp:image [\\s\\S]*?/wp:image -->";
+                pattern = java.util.regex.Pattern.compile(imageBlockPattern);
+                matcher = pattern.matcher(columnContent);
+                
+                if (matcher.find()) {
+                    String imageBlock = matcher.group(0);
+                    System.out.println("Found image block within column");
+                    
+                    // Create updated image block with the exact same attributes as in the example HTML
+                    String updatedImageBlock = String.format(
+                        "<!-- wp:image {\"id\":%d,\"width\":\"550px\",\"height\":\"auto\",\"aspectRatio\":\"1\",\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n" +
+                        "<figure class=\"wp-block-image size-full is-resized\">" +
+                        "<img src=\"%s\" alt=\"%s\" class=\"wp-image-%d\" style=\"aspect-ratio:1;width:550px;height:auto\"/></figure>\n" +
+                        "<!-- /wp:image -->",
+                        mediaId,
+                        uploadedImageUrl,
+                        metadata.getString("alt_text"),
+                        mediaId
+                    );
+                    
+                    // Replace the image block within the column content
+                    String updatedColumnContent = columnContent.replace(imageBlock, updatedImageBlock);
+                    
+                    // Now replace the entire column in the page content
+                    String updatedContent = currentContent.replace(columnContent, updatedColumnContent);
+                    
+                    JSONObject updatePayload = new JSONObject();
+                    updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+                    
+                    HttpPost updateRequest = new HttpPost(URI.create(url));
+                    setAuthHeader(updateRequest);
+                    updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+                    updateRequest.setHeader("Content-Type", "application/json");
+                    
+                    try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                        int statusCode = updateResponse.getCode();
+                        System.out.println("Update status for page " + pageId + " infobox image: " + statusCode);
+                        if (statusCode >= 300) {
+                            String errorResponse = EntityUtils.toString(updateResponse.getEntity());
+                            System.err.println("Error response: " + errorResponse);
+                            throw new IOException("Failed to update infobox image: " + errorResponse);
+                        } else {
+                            System.out.println("Successfully updated infobox image");
+                        }
+                    }
+                    return;
+                } else {
+                    System.out.println("Could not find image block within column " + infoboxId);
+                    
+                    // Try to find any img tag within the column
+                    pattern = java.util.regex.Pattern.compile("<img[^>]*>");
+                    matcher = pattern.matcher(columnContent);
+                    
+                    if (matcher.find()) {
+                        String imgTag = matcher.group(0);
+                        System.out.println("Found img tag directly in the column. Attempting direct update.");
+                        
+                        // Create a complete new image block
+                        String newImageBlock = String.format(
+                            "<!-- wp:image {\"id\":%d,\"width\":\"550px\",\"height\":\"auto\",\"aspectRatio\":\"1\",\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n" +
+                            "<figure class=\"wp-block-image size-full is-resized\">" +
+                            "<img src=\"%s\" alt=\"%s\" class=\"wp-image-%d\" style=\"aspect-ratio:1;width:550px;height:auto\"/></figure>\n" +
+                            "<!-- /wp:image -->",
+                            mediaId,
+                            uploadedImageUrl,
+                            metadata.getString("alt_text"),
+                            mediaId
+                        );
+                        
+                        // Check if there's a surrounding figure tag
+                        pattern = java.util.regex.Pattern.compile("<figure[^>]*>[\\s\\S]*?</figure>");
+                        matcher = pattern.matcher(columnContent);
+                        
+                        String updatedColumnContent;
+                        if (matcher.find()) {
+                            // Replace the entire figure tag
+                            String figureTag = matcher.group(0);
+                            updatedColumnContent = columnContent.replace(figureTag, 
+                                "<figure class=\"wp-block-image size-full is-resized\">" +
+                                "<img src=\"" + uploadedImageUrl + "\" alt=\"" + metadata.getString("alt_text") + 
+                                "\" class=\"wp-image-" + mediaId + "\" style=\"aspect-ratio:1;width:550px;height:auto\"/></figure>");
+                        } else {
+                            // Just replace the img tag with the whole image block
+                            updatedColumnContent = columnContent.replace(imgTag, newImageBlock);
+                        }
+                        
+                        // Update the content
+                        String updatedContent = currentContent.replace(columnContent, updatedColumnContent);
+                        
+                        JSONObject updatePayload = new JSONObject();
+                        updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+                        
+                        HttpPost updateRequest = new HttpPost(URI.create(url));
+                        setAuthHeader(updateRequest);
+                        updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+                        updateRequest.setHeader("Content-Type", "application/json");
+                        
+                        try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                            int statusCode = updateResponse.getCode();
+                            System.out.println("Update status for page " + pageId + " infobox image (alternative approach): " + statusCode);
+                            if (statusCode >= 300) {
+                                String errorResponse = EntityUtils.toString(updateResponse.getEntity());
+                                System.err.println("Error response: " + errorResponse);
+                            }
+                        }
+                        return;
+                    }
+                }
+            } else {
+                System.out.println("Could not find Kadence column with uniqueID: " + infoboxId);
+                
+                // Debug: Print a portion of the content for diagnostic
+                if (currentContent.contains(infoboxId)) {
+                    int idIndex = currentContent.indexOf(infoboxId);
+                    int startIndex = Math.max(0, idIndex - 100);
+                    int endIndex = Math.min(currentContent.length(), idIndex + 200);
+                    System.out.println("Context around ID: " + currentContent.substring(startIndex, endIndex));
+                    
+                    // Try a more lenient pattern
+                    String lenientPattern = "[\\s\\S]*?" + infoboxId + "[\\s\\S]*?";
+                    pattern = java.util.regex.Pattern.compile(lenientPattern);
+                    matcher = pattern.matcher(currentContent);
+                    
+                    if (matcher.find()) {
+                        String matchedContent = matcher.group(0);
+                        System.out.println("Found content with ID using lenient match. Length: " + matchedContent.length());
+                        
+                        // Look for image tag in this content
+                        pattern = java.util.regex.Pattern.compile("<img[^>]*>");
+                        matcher = pattern.matcher(matchedContent.substring(Math.max(0, matchedContent.length() - 500)));
+                        
+                        if (matcher.find()) {
+                            String imgTag = matcher.group(0);
+                            System.out.println("Found img tag in lenient match context: " + imgTag);
+                            
+                            // Create new img tag
+                            String newImgTag = String.format(
+                                "<img src=\"%s\" alt=\"%s\" class=\"wp-image-%d\" style=\"aspect-ratio:1;width:550px;height:auto\"",
+                                uploadedImageUrl,
+                                metadata.getString("alt_text"),
+                                mediaId
+                            );
+                            
+                            if (imgTag.endsWith("/>")) {
+                                newImgTag += "/>";
+                            } else {
+                                newImgTag += ">";
+                            }
+                            
+                            // Replace just the img tag
+                            String updatedContent = currentContent.replace(imgTag, newImgTag);
+                            
+                            JSONObject updatePayload = new JSONObject();
+                            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+                            
+                            HttpPost updateRequest = new HttpPost(URI.create(url));
+                            setAuthHeader(updateRequest);
+                            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+                            updateRequest.setHeader("Content-Type", "application/json");
+                            
+                            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                                int statusCode = updateResponse.getCode();
+                                System.out.println("Last-resort update status: " + statusCode);
+                            }
+                            return;
+                        }
+                    }
                 }
             }
+            
+            System.err.println("Failed to update infobox image: Could not identify the correct HTML structure.");
+        } catch (Exception e) {
+            System.err.println("Error updating infobox: " + e.getMessage());
+            e.printStackTrace();
+            throw e; // Re-throw to maintain original behavior
         }
     }
 
@@ -927,16 +1056,91 @@ public class WordPressMediaClient extends BaseWordPressClient {
         }
     }
 
-        // Test method
-        public static void main(String[] args) {
-            try {
-                WordPressMediaClient client = new WordPressMediaClient();
-                
-                System.out.println(client.getAllMediaIds());
-    
-            } catch (Exception e) {
-                System.err.println("Error during testing: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }    
+    public static void main(String[] args) {
+        WordPressMediaClient client = new WordPressMediaClient();
+        WordPressBlockClient blockClient = new WordPressBlockClient();
+        int pageId = 318;
+        
+        System.out.println("===== TESTING ABOUT PAGE UPDATE METHODS =====");
+        
+        // Test value prop section updates
+        System.out.println("\n1. Testing Value Prop Section Updates:");
+        try {
+            blockClient.updateAdvancedHeadingText(
+                pageId,
+                "318_heading_value-prop",
+                "oin proposition New"
+            );
+            System.out.println("✓ Value prop heading updated successfully");
+        } catch (Exception e) {
+            System.err.println("✗ Error updating value prop heading: " + e.getMessage());
+        }
+        
+        try {
+            blockClient.updateParagraphText(
+                pageId,
+                "318_para_explanation",
+                "Test explanation paragraph for the value proposition section."
+            );
+            System.out.println("✓ Explanation paragraph updated successfully");
+        } catch (Exception e) {
+            System.err.println("✗ Error updating explanation paragraph: " + e.getMessage());
+        }
+        
+        // Test mission section updates
+        System.out.println("\n2. Testing Mission Section Updates:");
+        try {
+            blockClient.updateHeadingText(
+                pageId,
+                "318_heading_mission",
+                "Test Mission Heading"
+            );
+            System.out.println("✓ Mission heading updated successfully");
+        } catch (Exception e) {
+            System.err.println("✗ Error updating mission heading: " + e.getMessage());
+        }
+        
+        try {
+            blockClient.updateParagraphText(
+                pageId,
+                "318_para_mission",
+                "Test mission paragraph text. This is where the mission statement would go."
+            );
+            System.out.println("✓ Mission paragraph updated successfully");
+        } catch (Exception e) {
+            System.err.println("✗ Error updating mission paragraph: " + e.getMessage());
+        }
+        
+        // Test biography text update
+        System.out.println("\n3. Testing Biography Text Update:");
+        try {
+            blockClient.updateParagraphText(
+                pageId,
+                "318_para_bio",
+                "Test biography text. This is where the personal story would go."
+            );
+            System.out.println("✓ Biography paragraph updated successfully");
+        } catch (Exception e) {
+            System.err.println("✗ Error updating biography paragraph: " + e.getMessage());
+        }
+        
+        // Test image updates
+        System.out.println("\n4. Testing Image Updates:");
+        try {
+            // Create a test image object
+            Image testImage = new Image("https://ruckquest.com/wp-content/uploads/2025/03/vertex-image-1742014092486.png");
+            
+            // Test infobox image update
+            client.updateInfoboxImage(pageId, "318_1fa743-7a", testImage);
+            System.out.println("✓ Infobox image updated successfully");
+            
+            // Test column image update
+            client.UpdateColumnImage(pageId, "318_8978a8-3e", "https://ruckquest.com/wp-content/uploads/2025/03/vertex-image-1742014092486.png");
+            System.out.println("✓ Column image updated successfully");
+        } catch (Exception e) {
+            System.err.println("✗ Error updating images: " + e.getMessage());
+        }
+        
+        System.out.println("\n===== ABOUT PAGE UPDATE TESTS COMPLETE =====");
+    }
 } 

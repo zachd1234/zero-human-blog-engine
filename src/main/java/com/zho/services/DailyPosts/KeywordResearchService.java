@@ -416,7 +416,7 @@ public class KeywordResearchService {
         KeywordResearchService service = new KeywordResearchService();
         
         // Create a test BlogRequest
-        BlogRequest request = new BlogRequest("phase i esa", "phase i esa");
+        BlogRequest request = new BlogRequest("PIPA mitigation strategies", "PIPA mitigation strategies in texas");
         
         try {
             // Use the actual path to your CSV file

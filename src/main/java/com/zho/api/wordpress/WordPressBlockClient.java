@@ -449,33 +449,83 @@ public class WordPressBlockClient extends BaseWordPressClient {
 
     public void updateAdvancedHeadingText(int pageId, String uniqueId, String text) throws IOException, ParseException {
         String currentContent = getPageContent(pageId);
+        System.out.println("DEBUG: Updating advanced heading with uniqueID: " + uniqueId);
+        System.out.println("DEBUG: New text: " + text);
         
-        // Pattern to extract the existing attributes
-        String attrPattern = "<!-- wp:kadence/advancedheading \\{([^}]*)\"uniqueID\":\"" + uniqueId + "\"([^}]*)\\}";
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(attrPattern);
-        java.util.regex.Matcher matcher = pattern.matcher(currentContent);
+        // Log a small portion of the current content to verify what we're working with
+        System.out.println("DEBUG: Content excerpt: " + 
+            (currentContent.length() > 500 ? 
+                currentContent.substring(0, 200) + "..." + 
+                currentContent.substring(currentContent.length() - 300) : 
+                currentContent));
         
-        // Create the replacement block preserving all attributes
-        String newBlock = String.format(
-            "<!-- wp:kadence/advancedheading {%s\"uniqueID\":\"%s\"%s} -->\n" +
-            "<h1 class=\"kt-adv-heading%s wp-block-kadence-advancedheading\" data-kb-block=\"kb-adv-heading%s\">%s</h1>\n" +
-            "<!-- /wp:kadence/advancedheading -->",
-            matcher.find() ? matcher.group(1) : "",  // Preserve prefix attributes
-            uniqueId,
-            matcher.group(2),                        // Preserve suffix attributes
-            uniqueId,
-            uniqueId,
-            text
-        );
-        
-        // Replace the old block
+        // First, find the block that contains our tracking uniqueId in the className
         String blockPattern = String.format(
-            "<!-- wp:kadence/advancedheading \\{[^}]*\"uniqueID\":\"%s\"[^}]*\\}[\\s\\S]*?<!-- /wp:kadence/advancedheading -->",
+            "<!-- wp:kadence/advancedheading [^>]*className[^>]*%s[^>]*-->([\\s\\S]*?)<!-- /wp:kadence/advancedheading -->",
             uniqueId
         );
-        String updatedContent = currentContent.replaceFirst(blockPattern, newBlock);
         
-        updatePageContent(pageId, updatedContent);
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(blockPattern);
+        java.util.regex.Matcher matcher = pattern.matcher(currentContent);
+        
+        if (matcher.find()) {
+            String originalBlock = matcher.group(0);
+            System.out.println("DEBUG: Found block with className containing " + uniqueId);
+            System.out.println("DEBUG: Original block: " + originalBlock);
+            
+            // Create a new block with the same attributes but updated text
+            String newBlock = originalBlock.replaceAll(
+                ">([^<]+)</h\\d+>",
+                ">" + text + "</h2>"
+            );
+            
+            System.out.println("DEBUG: New block: " + newBlock);
+            
+            // Update the content
+            String updatedContent = currentContent.replace(originalBlock, newBlock);
+            System.out.println("DEBUG: Content updated? " + !updatedContent.equals(currentContent));
+            
+            updatePageContent(pageId, updatedContent);
+            System.out.println("DEBUG: Advanced heading updated successfully");
+            return;
+        } else {
+            System.out.println("DEBUG: Block not found by className pattern: " + blockPattern);
+        }
+        
+        // If not found by className, try a more general approach
+        System.out.println("DEBUG: Trying more general approach...");
+        
+        // Find any advanced heading block that contains our uniqueId anywhere
+        String generalPattern = "<!-- wp:kadence/advancedheading [^>]*-->([\\s\\S]*?)" + uniqueId + "([\\s\\S]*?)<!-- /wp:kadence/advancedheading -->";
+        pattern = java.util.regex.Pattern.compile(generalPattern);
+        matcher = pattern.matcher(currentContent);
+        
+        if (matcher.find()) {
+            String originalBlock = matcher.group(0);
+            System.out.println("DEBUG: Found block containing uniqueId: " + uniqueId);
+            System.out.println("DEBUG: Original block: " + originalBlock);
+            
+            // Create a new block with the same attributes but updated text
+            String newBlock = originalBlock.replaceAll(
+                ">([^<]+)</h\\d+>",
+                ">" + text + "</h2>"
+            );
+            
+            System.out.println("DEBUG: New block: " + newBlock);
+            
+            // Update the content
+            String updatedContent = currentContent.replace(originalBlock, newBlock);
+            System.out.println("DEBUG: Content updated? " + !updatedContent.equals(currentContent));
+            
+            updatePageContent(pageId, updatedContent);
+            System.out.println("DEBUG: Advanced heading updated successfully");
+            return;
+        } else {
+            System.out.println("DEBUG: Block not found by general pattern either");
+        }
+        
+        // If we get here, we couldn't find the block
+        throw new IOException("Could not find advanced heading block containing: " + uniqueId);
     }
 
     public void updateAccordionFAQ(int faqId, String content) throws IOException {
@@ -675,7 +725,48 @@ public class WordPressBlockClient extends BaseWordPressClient {
             return siteInfo.getString("name");
         }
     }
-
+    
+    /**
+     * Updates a page's content by replacing exact text
+     */
+    public void updateContentWithExactReplacement(int pageId, String currentText, String newText) 
+            throws IOException, ParseException {
+        String url = baseUrl + "pages/" + pageId + "?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject page = new JSONObject(responseBody);
+            
+            JSONObject contentObj = page.getJSONObject("content");
+            String currentContent = contentObj.getString("raw");
+            
+            // Replace the exact text
+            String updatedContent = currentContent.replace(currentText, newText);
+            
+            // If no replacement was made, log a warning
+            if (updatedContent.equals(currentContent)) {
+                System.out.println("WARNING: Could not find exact text to replace in page " + pageId);
+                return;
+            }
+            
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+            
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                if (updateResponse.getCode() != 200) {
+                    throw new IOException("Failed to update content. Status: " + updateResponse.getCode());
+                }
+                System.out.println("Successfully updated content with exact replacement");
+            }
+        }
+    }
 
     public static void main(String[] args) {
         try {
@@ -685,5 +776,196 @@ public class WordPressBlockClient extends BaseWordPressClient {
             System.err.println("Error during testing: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Finds and replaces text on a page with absolute certainty, with detailed logging and fallback options
+     * @param pageId The ID of the page to update
+     * @param currentText The exact text to find and replace
+     * @param newText The new text to replace it with
+     * @param debug Whether to enable detailed debug logging
+     * @return true if the replacement was successful, false otherwise
+     */
+    public boolean findAndReplaceTextWithCertainty(int pageId, String currentText, String newText, boolean debug) 
+            throws IOException, ParseException {
+        String url = baseUrl + "pages/" + pageId + "?context=edit";
+        HttpGet getRequest = new HttpGet(URI.create(url));
+        setAuthHeader(getRequest);
+        
+        try (CloseableHttpResponse response = httpClient.execute(getRequest)) {
+            String responseBody = EntityUtils.toString(response.getEntity());
+            JSONObject page = new JSONObject(responseBody);
+            
+            JSONObject contentObj = page.getJSONObject("content");
+            String currentContent = contentObj.getString("raw");
+            
+            if (debug) {
+                System.out.println("DEBUG: Page ID: " + pageId);
+                System.out.println("DEBUG: Content length: " + currentContent.length());
+                System.out.println("DEBUG: Searching for text (length " + currentText.length() + " chars)");
+            }
+            
+            // Check if the exact text exists in the content
+            boolean exactMatch = currentContent.contains(currentText);
+            
+            if (!exactMatch) {
+                // Try with normalized whitespace (WordPress sometimes changes spaces)
+                String normalizedText = normalizeWhitespace(currentText);
+                String normalizedContent = normalizeWhitespace(currentContent);
+                
+                boolean normalizedMatch = normalizedContent.contains(normalizedText);
+                
+                if (normalizedMatch && debug) {
+                    System.out.println("DEBUG: Found match with normalized whitespace");
+                    currentText = normalizedText;
+                    currentContent = normalizedContent;
+                    exactMatch = true;
+                } else {
+                    // Try with decoded HTML entities (WordPress sometimes encodes special chars)
+                    String decodedText = decodeHtmlEntities(currentText);
+                    String decodedContent = decodeHtmlEntities(currentContent);
+                    
+                    boolean decodedMatch = decodedContent.contains(decodedText);
+                    
+                    if (decodedMatch && debug) {
+                        System.out.println("DEBUG: Found match with decoded HTML entities");
+                        currentText = decodedText;
+                        currentContent = decodedContent;
+                        exactMatch = true;
+                    }
+                }
+            }
+            
+            if (!exactMatch) {
+                if (debug) {
+                    System.out.println("DEBUG: Exact text not found in page " + pageId);
+                    // Show character counts and snippets to help diagnose
+                    System.out.println("DEBUG: Length of text to find: " + currentText.length() + " chars");
+                    
+                    // Try to find similar text by first few words
+                    String[] words = currentText.split("\\s+");
+                    if (words.length > 3) {
+                        String firstFewWords = String.join(" ", words[0], words[1], words[2]);
+                        int firstFewWordsIndex = currentContent.indexOf(firstFewWords);
+                        if (firstFewWordsIndex >= 0) {
+                            int snippetStart = Math.max(0, firstFewWordsIndex - 20);
+                            int snippetEnd = Math.min(currentContent.length(), firstFewWordsIndex + firstFewWords.length() + 100);
+                            System.out.println("DEBUG: Found similar beginning: '" 
+                                + currentContent.substring(snippetStart, snippetEnd) + "'");
+                            
+                            // Print a comparison of expected vs actual for this section
+                            int compareLength = Math.min(100, currentText.length());
+                            String expected = currentText.substring(0, compareLength);
+                            String actual = currentContent.substring(
+                                firstFewWordsIndex, 
+                                Math.min(currentContent.length(), firstFewWordsIndex + compareLength)
+                            );
+                            
+                            System.out.println("DEBUG: Expected: '" + expected + "'");
+                            System.out.println("DEBUG: Actual:   '" + actual + "'");
+                            
+                            // Check for character differences
+                            StringBuilder diff = new StringBuilder();
+                            for (int i = 0; i < Math.min(expected.length(), actual.length()); i++) {
+                                if (expected.charAt(i) != actual.charAt(i)) {
+                                    diff.append("Mismatch at position ").append(i)
+                                        .append(": expected '").append(expected.charAt(i))
+                                        .append("' (").append((int)expected.charAt(i))
+                                        .append("), actual '").append(actual.charAt(i))
+                                        .append("' (").append((int)actual.charAt(i)).append(")\n");
+                                }
+                            }
+                            
+                            if (diff.length() > 0) {
+                                System.out.println("DEBUG: Character differences:\n" + diff.toString());
+                            }
+                        }
+                    }
+                    
+                    // If the content is short enough, print it for manual inspection
+                    if (currentText.length() < 500) {
+                        System.out.println("DEBUG: Text to find (escaped):\n" + escapeString(currentText));
+                    }
+                }
+                return false;
+            }
+            
+            // Replace the exact text
+            String updatedContent = currentContent.replace(currentText, newText);
+            
+            // Double-check the replacement was made
+            if (updatedContent.equals(currentContent)) {
+                System.out.println("ERROR: Replacement logic failed - content unchanged despite text being found");
+                return false;
+            }
+            
+            // Count instances of replacement
+            int instances = 0;
+            int lastIndex = 0;
+            while (lastIndex != -1) {
+                lastIndex = currentContent.indexOf(currentText, lastIndex);
+                if (lastIndex != -1) {
+                    instances++;
+                    lastIndex += currentText.length();
+                }
+            }
+            
+            if (debug && instances > 1) {
+                System.out.println("WARNING: Found " + instances + " instances of the text. All will be replaced.");
+            }
+            
+            JSONObject updatePayload = new JSONObject();
+            updatePayload.put("content", new JSONObject().put("raw", updatedContent));
+            
+            HttpPost updateRequest = new HttpPost(URI.create(url));
+            setAuthHeader(updateRequest);
+            updateRequest.setEntity(new StringEntity(updatePayload.toString(), StandardCharsets.UTF_8));
+            updateRequest.setHeader("Content-Type", "application/json");
+            
+            try (CloseableHttpResponse updateResponse = httpClient.execute(updateRequest)) {
+                if (updateResponse.getCode() != 200) {
+                    throw new IOException("Failed to update content. Status: " + updateResponse.getCode());
+                }
+                if (debug) {
+                    System.out.println("DEBUG: Successfully updated " + instances + " instance(s) of text");
+                }
+                return true;
+            }
+        }
+    }
+    
+    /**
+     * Normalize whitespace in a string (collapse multiple spaces to single space)
+     */
+    private String normalizeWhitespace(String input) {
+        return input.replaceAll("\\s+", " ").trim();
+    }
+    
+    /**
+     * Decode HTML entities in a string
+     */
+    private String decodeHtmlEntities(String input) {
+        return input
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .replace("&#039;", "'")
+            .replace("&nbsp;", " ");
+    }
+    
+    /**
+     * Escape a string for debug printing
+     */
+    private String escapeString(String input) {
+        StringBuilder result = new StringBuilder();
+        for (char c : input.toCharArray()) {
+            if (c < 32 || c > 126) {
+                result.append(String.format("\\u%04x", (int)c));
+            } else {
+                result.append(c);
+            }
+        }
+        return result.toString();
     }
 } 

@@ -50,34 +50,49 @@ public class PersonaService {
             // First generate the stereotypical description
             String stereotypicalDescription = generateStereotypicalDescription(topic);
             System.out.println("Generated description: " + stereotypicalDescription);
-            
+    
             // Generate the image and store the URL
-            this.imageUrl = getImgAIClient.generateImageWithVertex(
-                stereotypicalDescription,
-                1024,
-                1024,
-                1,
-                null
-            );
-            
+            String tempImageUrl = null;
+            try {
+                // Try Vertex AI first
+                tempImageUrl = getImgAIClient.generateImageWithVertex(
+                    stereotypicalDescription,
+                    1024,
+                    1024,
+                    1,
+                    null
+                );
+                System.out.println("Image generated with Vertex AI: " + tempImageUrl);
+            } catch (Exception e) {
+                System.out.println("Vertex AI failed, falling back to GetImg: " + e.getMessage());
+            }
+    
+            // Fallback to GetImg if Vertex AI fails or returns null
+            if (tempImageUrl == null || tempImageUrl.isEmpty()) {
+                tempImageUrl = getImgAIClient.generateImage(stereotypicalDescription);
+                System.out.println("Image generated with GetImg: " + tempImageUrl);
+            }
+    
+            this.imageUrl = tempImageUrl;
+    
             // Download and save the image locally first
             String localImagePath = "/Users/zachderhake/Desktop/persona_" + topic.replaceAll("\\s+", "_") + ".jpg";
             downloadImage(this.imageUrl, localImagePath);
             System.out.println("Image downloaded to: " + localImagePath);
-            
+    
             // Upload to WordPress Media Library
             String wpMediaUrl = mediaClient.uploadMediaFromFile(localImagePath, "Persona Image - " + topic);
             System.out.println("Uploaded to WordPress Media Library: " + wpMediaUrl);
-            
+    
             try {
                 System.out.println("About to generate basic persona...");
                 generateBasicPersona(topic, stereotypicalDescription);
-                
+    
                 System.out.println("Basic persona generated, attempting database update...");
                 System.out.println("Name: " + this.name);
                 System.out.println("Expertise: " + this.expertise);
                 System.out.println("Biography: " + this.biography);
-                
+    
                 // Add database update here
                 databaseService.updatePersona(
                     this.name,
@@ -88,18 +103,19 @@ public class PersonaService {
                     wpMediaUrl    // Store the WordPress Media URL
                 );
                 System.out.println("Database update completed successfully");
-                
+    
             } catch (JSONException e) {
                 System.err.println("Error generating basic persona: " + e.getMessage());
             } catch (SQLException e) {
                 System.err.println("Error saving persona to database: " + e.getMessage());
             }
-            
+    
         } catch (Exception e) {
             System.err.println("Error in persona generation: " + e.getMessage());
             throw e;
         }
     }
+    
     
     private void generateBasicPersona(String topic, String stereotypicalDescription) throws IOException {
         String personaPrompt = String.format(

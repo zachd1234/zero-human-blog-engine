@@ -121,6 +121,24 @@ public class AutoContentWorkflowService {
             databaseService.updateKeywordStatus(Long.valueOf(keyword.getId()), "PUBLISHED");
             databaseService.updateKeywordPostUrl(Long.valueOf(keyword.getId()), postResponse.getUrl());
             
+            // 6. Run outreach campaign for the published post
+            try {
+                System.out.println("Checking if site is active for outreach campaign...");
+                Site currentSite = Site.getCurrentSite();
+                
+                if (currentSite.isActive()) {
+                    System.out.println("Starting outreach campaign for: " + postResponse.getUrl());
+                    String siteId = String.valueOf(currentSite.getSiteId());
+                    blogPostGeneratorAPI.runOutreachCampaign(siteId, postResponse.getUrl(), title);
+                    System.out.println("Outreach campaign initiated successfully");
+                } else {
+                    System.out.println("Skipping outreach campaign - site is not active");
+                }
+            } catch (Exception e) {
+                System.err.println("Error running outreach campaign: " + e.getMessage());
+                // Continue execution even if outreach campaign fails
+            }
+            
             System.out.println("Successfully published post for: " + keyword.getKeyword());
 
         } catch (Exception e) {

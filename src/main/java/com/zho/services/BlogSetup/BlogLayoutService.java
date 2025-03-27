@@ -184,18 +184,31 @@ public class BlogLayoutService {
 
     private String generateAndUploadAuthorImage(BlogRequest blogRequest, String authorName) throws IOException {
         // Generate the image description
-        String imageDescription = generateAuthorImagePrompt(blogRequest.getTopic() + ". The image exhibits a high level of realism, reminiscent of modern portrait photography, in 4K UHD quality, suitable for a profile picture or official use", authorName);
-        
-        // Generate and return only the image URL from GetImgAI
-        return getImgAIClient.generateImageWithVertex(
-            imageDescription,
-            1024,
-            1024,
-            1,
-            null
+        String imageDescription = generateAuthorImagePrompt(
+            blogRequest.getTopic() + ". The image exhibits a high level of realism, reminiscent of modern portrait photography, in 4K UHD quality, suitable for a profile picture or official use",
+            authorName
         );
+    
+        // First try Vertex AI
+        try {
+            // Get the temporary URL from Vertex AI
+            String tempImageUrl = getImgAIClient.generateImageWithVertex(imageDescription, 1024, 1024, 1, null);
+    
+            // If we got a valid URL, upload it to WordPress media library
+            if (tempImageUrl != null && !tempImageUrl.isEmpty()) {
+                String permanentUrl = mediaClient.uploadImageFromUrl(tempImageUrl);
+                return permanentUrl; // Return the permanent WordPress URL
+            }
+        } catch (Exception e) {
+            System.out.println("Vertex AI failed, falling back to GetImg: " + e.getMessage());
+        }
+    
+        // Fallback to GetImg if Vertex AI fails or returns null
+        String fallbackUrl = getImgAIClient.generateImage(imageDescription);
+        String permanentUrl = mediaClient.uploadImageFromUrl(fallbackUrl);
+        return permanentUrl; // Return the permanent WordPress URL
     }
-
+    
     private void downloadImage(String imageUrl, String destinationPath) throws IOException {
         URL url = new URL(imageUrl);
         try (InputStream in = url.openStream();

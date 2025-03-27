@@ -586,16 +586,6 @@ public class DatabaseService {
         }
     }
     
-    public static void main(String[] args) {
-        DatabaseService dbService = new DatabaseService();
-            
-        try{
-            dbService.clearTopics();
-        } catch (SQLException e) {
-            System.err.println("Error clearing keywords: " + e.getMessage());
-            throw new RuntimeException("Database error while clearing keywords", e);
-        }
-    }
 
     public void updateBlogName(String blogName) throws SQLException {
         System.out.println("\n📝 Updating blog name to: " + blogName);
@@ -620,4 +610,55 @@ public class DatabaseService {
             throw e;
         }
     }
-} 
+
+    /**
+     * Gets content for a specific element
+     */
+    public String getElementContent(int pageId, String elementId) throws SQLException {
+        String sql = "SELECT content_text FROM page_content WHERE page_id = ? AND element_id = ? AND site_id = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, pageId);
+            stmt.setString(2, elementId);
+            stmt.setInt(3, currentSiteId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("content_text");
+                }
+                return null; // Content not found
+            }
+        }
+    }
+
+    /**
+     * Updates content for a specific element
+     */
+    public void updateElementContent(int pageId, String elementId, String newContent) throws SQLException {
+        String sql = "INSERT INTO page_content (page_id, element_id, content_text, site_id) VALUES (?, ?, ?, ?) " +
+                     "ON DUPLICATE KEY UPDATE content_text = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, pageId);
+            stmt.setString(2, elementId);
+            stmt.setString(3, newContent);
+            stmt.setInt(4, currentSiteId);
+            stmt.setString(5, newContent);
+            int rowsAffected = stmt.executeUpdate();
+            System.out.println("Updated element " + elementId + " for page " + pageId + ", site " + currentSiteId + ": " + rowsAffected + " rows affected");
+        }
+    }
+
+    public static void main(String[] args) {
+        DatabaseService dbService = new DatabaseService();
+            
+        try{
+            System.out.println(dbService.getElementContent(318,  "318_para_mission"));
+        } catch (SQLException e) {
+            System.err.println("Error clearing keywords: " + e.getMessage());
+            throw new RuntimeException("Database error while clearing keywords", e);
+        }
+    }
+}

@@ -219,16 +219,34 @@ public class StaticContentService {
     }
 
     // Helper method to generate an image from a prompt
-    private Image generateImageFromPrompt(String prompt) throws IOException, ParseException {
-        GetImgAIClient getImgAIClient = new GetImgAIClient();
-        
-        // Get the temporary URL from GetImg AI
-        String tempImageUrl = getImgAIClient.generateImageWithVertex(prompt);
-        
-        // Download and upload to WordPress media library
-        String permanentUrl = mediaClient.uploadImageFromUrl(tempImageUrl);
-        
-        return new Image("", permanentUrl, prompt);  // Use the permanent WordPress URL
+    private Image generateImageFromPrompt(String prompt) throws IOException, ParseException, Exception {
+        try {
+            GetImgAIClient getImgAIClient = new GetImgAIClient();
+            
+            // First try Vertex AI
+            try {
+                // Get the temporary URL from Vertex AI
+                String tempImageUrl = getImgAIClient.generateImageWithVertex(prompt);
+                
+                // If we got a valid URL, use it
+                if (tempImageUrl != null && !tempImageUrl.isEmpty()) {
+                    // Download and upload to WordPress media library
+                    String permanentUrl = mediaClient.uploadImageFromUrl(tempImageUrl);
+                    return new Image("", permanentUrl, prompt);  // Use the permanent WordPress URL
+                }
+            } catch (Exception e) {
+                System.out.println("Vertex AI failed, falling back to GetImg: " + e.getMessage());
+            }
+            
+            // Fallback to GetImg if Vertex AI fails or returns null
+            String fallbackUrl = getImgAIClient.generateImage(prompt);
+            String permanentUrl = mediaClient.uploadImageFromUrl(fallbackUrl);
+            return new Image("", permanentUrl, prompt);
+        } catch (Exception e) {
+            System.err.println("All image generation methods failed for prompt: " + prompt);
+            e.printStackTrace();
+            throw e; // Re-throw the exception
+        }
     }
 
     public List<StaticPage> getPages() {
@@ -238,8 +256,9 @@ public class StaticContentService {
     public static void main(String[] args) {
         try {
             // Create test blog requests
-            BlogRequest testRequest = new BlogRequest("Rucking", "The online source for rucking advice, training tips, product reviews, ruck clubs, and all things rucking.");
-            // Initialize service
+            BlogRequest testRequest2 = new BlogRequest("Rucking", "The online source for rucking advice, training tips, product reviews, ruck clubs, and all things rucking.");
+            BlogRequest testRequest = new BlogRequest("Tennis Coaching", "The online source for tennis coaching advice, training tips, product reviews, ruck clubs, and all things tennis.");
+
             StaticContentService service = new StaticContentService();
             
             // Log the start of the process

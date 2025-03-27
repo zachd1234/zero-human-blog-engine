@@ -20,6 +20,7 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import java.io.FileInputStream;
 import java.io.File;
 import com.zho.api.wordpress.WordPressMediaClient;
+import org.json.JSONException;
 
 public class GetImgAIClient {
     private final String apiKey;
@@ -90,6 +91,15 @@ public class GetImgAIClient {
      * @throws IOException If there's an error communicating with the API
      */
     public String generateImageWithVertex(String prompt, int width, int height, int numberOfImages, String negativePrompt) throws IOException {
+        // Add a small delay before making the request to avoid rate limiting
+        try {
+            // Sleep for 2 seconds before making the request
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("Sleep interrupted: " + e.getMessage());
+        }
+        
         // Set up the project and location
         String projectId = ConfigManager.getVertexProjectId();
         String location = ConfigManager.getVertexLocation();
@@ -167,26 +177,68 @@ public class GetImgAIClient {
             // Parse the response to get the image URL
             String responseJson = JsonFormat.printer().print(response);
 
-            JSONObject jsonResponse = new JSONObject(responseJson);
-            JSONArray predictions = jsonResponse.getJSONArray("predictions");
-            JSONObject firstPrediction = predictions.getJSONObject(0);
+            try {
+                JSONObject jsonResponse = new JSONObject(responseJson);
+                
+                // Check if predictions exists before trying to access it
+                if (!jsonResponse.has("predictions")) {
+                    System.err.println("\n==== VERTEX AI RESPONSE STRUCTURE ====");
+                    
+                    // Print the top-level keys in the response
+                    System.err.println("Top-level fields in response:");
+                    for (String key : jsonResponse.keySet()) {
+                        Object value = jsonResponse.get(key);
+                        String valueType = value.getClass().getSimpleName();
+                        System.err.println("  - " + key + " (" + valueType + ")");
+                    }
+                    
+                    // If there's an error field, print it in a readable way
+                    if (jsonResponse.has("error")) {
+                        JSONObject error = jsonResponse.getJSONObject("error");
+                        System.err.println("\nError details:");
+                        System.err.println("  Code: " + (error.has("code") ? error.get("code") : "N/A"));
+                        System.err.println("  Message: " + (error.has("message") ? error.getString("message") : "N/A"));
+                        System.err.println("  Status: " + (error.has("status") ? error.getString("status") : "N/A"));
+                    }
+                    
+                    // Print a sample of the raw response (first 200 chars)
+                    System.err.println("\nResponse preview (first 200 chars):");
+                    System.err.println(responseJson.substring(0, Math.min(200, responseJson.length())) + "...");
+                    System.err.println("==== END OF RESPONSE STRUCTURE ====\n");
+                    
+                    return null; // Or implement a fallback mechanism
+                }
+                
+                JSONArray predictions = jsonResponse.getJSONArray("predictions");
+                JSONObject firstPrediction = predictions.getJSONObject(0);
 
-            // Extract the base64 encoded image from the response
-            String base64Image = firstPrediction.getString("bytesBase64Encoded");
-            
-            // Generate a unique filename
-            String timestamp = String.valueOf(System.currentTimeMillis());
-            String filename = "vertex-image-" + timestamp + ".jpg";
-            
-            // Upload to WordPress
-            WordPressMediaClient wpClient = new WordPressMediaClient();
-            String wordpressUrl = wpClient.uploadMediaFromBase64(
-                base64Image,
-                filename,
-                "AI Generated: " + prompt.substring(0, Math.min(50, prompt.length())) + "..."
-            );
-            
-            return wordpressUrl;
+                // Extract the base64 encoded image from the response
+                String base64Image = firstPrediction.getString("bytesBase64Encoded");
+                
+                // Generate a unique filename
+                String timestamp = String.valueOf(System.currentTimeMillis());
+                String filename = "vertex-image-" + timestamp + ".jpg";
+                
+                // Upload to WordPress
+                WordPressMediaClient wpClient = new WordPressMediaClient();
+                String wordpressUrl = wpClient.uploadMediaFromBase64(
+                    base64Image,
+                    filename,
+                    "AI Generated: " + prompt.substring(0, Math.min(50, prompt.length())) + "..."
+                );
+                
+                return wordpressUrl;
+            } catch (JSONException e) {
+                System.err.println("ERROR: Failed to parse JSON response");
+                System.err.println("Exception: " + e.getMessage());
+                
+                // Print a sample of the raw response (first 200 chars)
+                System.err.println("Response preview (first 200 chars):");
+                System.err.println(responseJson.substring(0, Math.min(200, responseJson.length())) + "...");
+                
+                e.printStackTrace();
+                return null;
+            }
         }
     }
 
