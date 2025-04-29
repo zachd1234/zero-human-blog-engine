@@ -1,0 +1,60 @@
+# Example application.properties file
+# Replace the placeholder values with your actual credentials
+
+# Google Ads API Configuration
+api.googleads.clientId=your-client-id.apps.googleusercontent.com
+api.googleads.clientSecret=your-client-secret
+api.googleads.developerToken=your-developer-token
+api.googleads.loginCustomerId=your-customer-id
+api.googleads.refreshToken=your-refresh-token
+
+# Blog Generator API
+blog.generator.api.key=your-api-key
+
+# Database Configuration
+database.password=your-database-password
+database.url=jdbc:mysql://your-database-host:3306/your-database-name
+database.user=your-database-user
+
+# Gemini API
+gemini.api.key=your-gemini-api-key
+
+# GetImg AI Configuration
+getimg.ai.key=your-getimg-api-key
+getimg.ai.url=https://api.getimg.ai/v1
+
+# GoDaddy API Configuration
+godaddy.api.key=your-godaddy-api-key
+godaddy.api.secret=your-godaddy-api-secret
+godaddy.api.url=https://api.ote-godaddy.com
+
+# Google Cloud Configuration
+google.application.credentials=path/to/your/credentials.json
+google.endpoint.id=your-endpoint-id
+google.location=your-location
+google.project.id=your-project-id
+
+# Koala Writer API
+koala.writer.api.key=your-koala-api-key
+koala.writer.api.url=https://koala.sh/api
+
+# Noun Project API
+nounproject.api.key=your-nounproject-api-key
+nounproject.api.secret=your-nounproject-api-secret
+
+# OpenAI Configuration
+openai.api.key=your-openai-api-key
+openai.api.url=https://api.openai.com/v1/chat/completions
+
+# Recraft API
+recraft.api.key=your-recraft-api-key
+recraft.api.url=https://external.api.recraft.ai/v1
+
+# Unsplash API
+unsplash.access.key=your-unsplash-access-key
+unsplash.api.url=https://api.unsplash.com
+
+# WordPress Configuration
+wordpress.base.url=your-wordpress-base-url
+wordpress.password=your-wordpress-password
+wordpress.username=your-wordpress-username 

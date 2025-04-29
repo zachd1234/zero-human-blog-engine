@@ -1,0 +1,6 @@
+# pack-refs with: peeled fully-peeled sorted 
+ae7a138bfb36e587f3aea89e1800a69b8a522250 refs/heads/backup-before-cleanup
+ae7a138bfb36e587f3aea89e1800a69b8a522250 refs/heads/clean-history
+ae7a138bfb36e587f3aea89e1800a69b8a522250 refs/heads/main
+ae7a138bfb36e587f3aea89e1800a69b8a522250 refs/remotes/origin/main
+71df9d5359fe94e0fcc5d72c9f43ec643d9ffca4 refs/stash

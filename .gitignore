@@ -19,3 +19,4 @@ layer/
 src/test/java/com/zho/AppTest.java
 rundb.sh
 .DS_Store
+.history
